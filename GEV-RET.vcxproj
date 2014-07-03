@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{CCD14921-2C47-47D0-B6A8-2E665A9D3ABD}</ProjectGuid>
+    <RootNamespace>GEVRET</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>c:\arduino-1.5.4\hardware\arduino\sam\cores\arduino;c:\arduino-1.5.4\hardware\arduino\sam\variants\arduino_due_x;c:\arduino-1.5.4\libraries;c:\arduino-1.5.4\hardware\arduino\sam\libraries;C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers;C:\Users\Collin\Documents\Arduino\libraries;c:\arduino-1.5.4\hardware\arduino\sam\system\CMSIS\CMSIS\Include\;c:\arduino-1.5.4\hardware\arduino\sam\system\CMSIS\Device\ATMEL\;c:\arduino-1.5.4\hardware\arduino\sam\system\libsam;c:\arduino-1.5.4\hardware\arduino\sam\system\libsam\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\arm-none-eabi\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\arm_none_eabi\include\;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\lib\gcc\arm-none-eabi\4.4.1\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\lib\gcc\arm-none-eabi\4.4.1\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>C:\Users\Collin\Desktop\GEV-RET\Visual Micro\.GEV-RET.vsarduino.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <IgnoreStandardIncludePath>true</IgnoreStandardIncludePath>
+      <PreprocessorDefinitions>__SAM3X8E__;USB_VID=0x2341;USB_PID=0x003e;USBCON;USB_MANUFACTURER="Unknown";USB_PRODUCT="Arduino Due";ARDUINO=154;ARDUINO_MAIN;printf=iprintf;__SAM__;__sam__;F_CPU=84000000L;__cplusplus;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="GEV-RET.ino">
+      <FileType>CppCode</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="due_can.h" />
+    <ClInclude Include="due_wire.h" />
+    <ClInclude Include="GEV-RET.h" />
+    <ClInclude Include="Logger.h" />
+    <ClInclude Include="MemCache.h" />
+    <ClInclude Include="PerfTimer.h" />
+    <ClInclude Include="sn65hvd234.h" />
+    <ClInclude Include="SystemIO.h" />
+    <ClInclude Include="TickHandler.h" />
+    <ClInclude Include="Visual Micro\.GEV-RET.vsarduino.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="due_can.cpp" />
+    <ClCompile Include="due_wire.cpp" />
+    <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="MemCache.cpp" />
+    <ClCompile Include="PerfTimer.cpp" />
+    <ClCompile Include="sn65hvd234.cpp" />
+    <ClCompile Include="SystemIO.cpp" />
+    <ClCompile Include="TickHandler.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
