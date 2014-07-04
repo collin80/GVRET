@@ -41,8 +41,8 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>c:\arduino-1.5.4\hardware\arduino\sam\cores\arduino;c:\arduino-1.5.4\hardware\arduino\sam\variants\arduino_due_x;c:\arduino-1.5.4\libraries;c:\arduino-1.5.4\hardware\arduino\sam\libraries;C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers;C:\Users\Collin\Documents\Arduino\libraries;c:\arduino-1.5.4\hardware\arduino\sam\system\CMSIS\CMSIS\Include\;c:\arduino-1.5.4\hardware\arduino\sam\system\CMSIS\Device\ATMEL\;c:\arduino-1.5.4\hardware\arduino\sam\system\libsam;c:\arduino-1.5.4\hardware\arduino\sam\system\libsam\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\arm-none-eabi\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\arm_none_eabi\include\;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\lib\gcc\arm-none-eabi\4.4.1\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\lib\gcc\arm-none-eabi\4.4.1\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ForcedIncludeFiles>C:\Users\Collin\Desktop\GEV-RET\Visual Micro\.GEV-RET.vsarduino.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>c:\arduino-1.5.4\hardware\arduino\sam\cores\arduino;c:\arduino-1.5.4\hardware\arduino\sam\variants\arduino_due_x;C:\Users\Collin\Documents\Arduino\libraries\due_rtc;C:\Users\Collin\Documents\Arduino\libraries\due_rtc\utility;C:\Users\Collin\Documents\Arduino\libraries\DueTimer;C:\Users\Collin\Documents\Arduino\libraries\DueTimer\utility;c:\arduino-1.5.4\libraries;c:\arduino-1.5.4\hardware\arduino\sam\libraries;C:\Program Files (x86)\Visual Micro\Visual Micro for Arduino\Micro Platforms\default\debuggers;C:\Users\Collin\Documents\Arduino\libraries;c:\arduino-1.5.4\hardware\arduino\sam\system\CMSIS\CMSIS\Include\;c:\arduino-1.5.4\hardware\arduino\sam\system\CMSIS\Device\ATMEL\;c:\arduino-1.5.4\hardware\arduino\sam\system\libsam;c:\arduino-1.5.4\hardware\arduino\sam\system\libsam\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\arm-none-eabi\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\arm_none_eabi\include\;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\lib\gcc\arm-none-eabi\4.4.1\include;c:\arduino-1.5.4/hardware/tools/g++_arm_none_eabi\lib\gcc\arm-none-eabi\4.4.1\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>C:\Users\Collin\Desktop\GVRET\Visual Micro\.GVRET.vsarduino.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <IgnoreStandardIncludePath>true</IgnoreStandardIncludePath>
       <PreprocessorDefinitions>__SAM3X8E__;USB_VID=0x2341;USB_PID=0x003e;USBCON;USB_MANUFACTURER="Unknown";USB_PRODUCT="Arduino Due";ARDUINO=154;ARDUINO_MAIN;printf=iprintf;__SAM__;__sam__;F_CPU=84000000L;__cplusplus;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -64,21 +64,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="GEV-RET.ino">
-      <FileType>CppCode</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="due_can.h" />
     <ClInclude Include="due_wire.h" />
-    <ClInclude Include="GEV-RET.h" />
+    <ClInclude Include="GVRET.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="MemCache.h" />
     <ClInclude Include="PerfTimer.h" />
     <ClInclude Include="sn65hvd234.h" />
-    <ClInclude Include="SystemIO.h" />
+    <ClInclude Include="sys_io.h" />
     <ClInclude Include="TickHandler.h" />
-    <ClInclude Include="Visual Micro\.GEV-RET.vsarduino.h" />
+    <ClInclude Include="Visual Micro\.GVRET.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="due_can.cpp" />
@@ -87,8 +82,11 @@
     <ClCompile Include="MemCache.cpp" />
     <ClCompile Include="PerfTimer.cpp" />
     <ClCompile Include="sn65hvd234.cpp" />
-    <ClCompile Include="SystemIO.cpp" />
+    <ClCompile Include="sys_io.cpp" />
     <ClCompile Include="TickHandler.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="GVRET.ino" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

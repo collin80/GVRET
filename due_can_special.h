@@ -122,8 +122,10 @@ typedef struct {
 #define CAN_MAILBOX_RX_OVER           0x02  //! Message overwriting happens or there're messages lost in different receive modes.
 #define CAN_MAILBOX_RX_NEED_RD_AGAIN  0x04  //! Application needs to re-read the data register in Receive with Overwrite mode.
 
-#define SIZE_RX_BUFFER	32 //RX incoming ring buffer is this big
-#define SIZE_TX_BUFFER	16 //TX ring buffer is this big
+//Size of these buffers in RAM is 20 bytes per entry.
+//Thus, (128+32) * 20 = 3200
+#define SIZE_RX_BUFFER	128 //RX incoming ring buffer is this big
+#define SIZE_TX_BUFFER	32 //TX ring buffer is this big
 
 //This is architecture specific. DO NOT USE THIS UNION ON ANYTHING OTHER THAN THE CORTEX M3 / Arduino Due
 //UNLESS YOU DOUBLE CHECK THINGS!

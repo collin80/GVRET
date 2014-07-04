@@ -32,8 +32,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <Arduino.h>
 #include "config.h"
-#include "eeprom_layout.h"
-#include "PrefHandler.h"
+#include "Logger.h"
 
 typedef struct {
   uint16_t offset;

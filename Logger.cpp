@@ -42,7 +42,7 @@ void Logger::debug(char *message, ...)
 
     va_list args;
     va_start(args, message);
-    Logger::log((DeviceId) NULL, Debug, message, args);
+    Logger::log(Debug, message, args);
     va_end(args);
 }
 
@@ -58,7 +58,7 @@ void Logger::info(char *message, ...)
 
     va_list args;
     va_start(args, message);
-    Logger::log((DeviceId) NULL, Info, message, args);
+    Logger::log(Info, message, args);
     va_end(args);
 }
 
@@ -74,7 +74,7 @@ void Logger::warn(char *message, ...)
 
     va_list args;
     va_start(args, message);
-    Logger::log((DeviceId) NULL, Warn, message, args);
+    Logger::log(Warn, message, args);
     va_end(args);
 }
 
@@ -90,7 +90,7 @@ void Logger::error(char *message, ...)
 
     va_list args;
     va_start(args, message);
-    Logger::log((DeviceId) NULL, Error, message, args);
+    Logger::log(Error, message, args);
     va_end(args);
 }
 
@@ -285,9 +285,9 @@ void Logger::logMessage(char *format, va_list args)
 
             if (*format == 'T') {
                 if (va_arg(args, int) == 1) {
-                    SerialUSB.print(Constants::trueStr);
+                    SerialUSB.print("TRUE");
                 } else {
-                    SerialUSB.print(Constants::falseStr);
+                    SerialUSB.print("FALSE");
                 }
 
                 continue;

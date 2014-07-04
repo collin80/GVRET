@@ -15,19 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="GEV-RET.ino" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Visual Micro\.GEV-RET.vsarduino.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="due_can.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="due_wire.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GEV-RET.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Logger.h">
@@ -42,10 +33,16 @@
     <ClInclude Include="sn65hvd234.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SystemIO.h">
+    <ClInclude Include="TickHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TickHandler.h">
+    <ClInclude Include="Visual Micro\.GVRET.vsarduino.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GVRET.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_io.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -68,11 +65,14 @@
     <ClCompile Include="sn65hvd234.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SystemIO.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="TickHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sys_io.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="GVRET.ino" />
   </ItemGroup>
 </Project>

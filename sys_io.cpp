@@ -49,8 +49,6 @@ int NumADCSamples;
 uint16_t adc_buffer[NUM_ANALOG][64];
 uint8_t adc_pointer[NUM_ANALOG]; //pointer to next position to use
 
-extern PrefHandler *sysPrefs;
-
 ADC_COMP adc_comp[NUM_ANALOG];
 
 bool useRawADC = false;
@@ -59,64 +57,19 @@ bool useRawADC = false;
 void sys_early_setup() {
 	int i;
 
-	//the first order of business is to figure out what hardware we are running on and fill in
-	//the pin tables.
-
-	uint8_t rawadc;
-	sysPrefs->read(EESYS_RAWADC, &rawadc);
-	if (rawadc != 0) {
-		useRawADC = true;
-		Logger::info("Using raw ADC mode");
-	}
-	else useRawADC = false;
-
 	NumADCSamples = 64;
 
-	uint8_t sys_type;
-	sysPrefs->read(EESYS_SYSTEM_TYPE, &sys_type);
-	if (sys_type == 2) {
-		Logger::info("Running on GEVCU2/DUED hardware.");
-		dig[0]=9; dig[1]=11; dig[2]=12; dig[3]=13;
-		adc[0][0] = 1; adc[0][1] = 0;
-		adc[1][0] = 3; adc[1][1] = 2;
-		adc[2][0] = 5; adc[2][1] = 4;
-		adc[3][0] = 7; adc[3][1] = 6;
-		out[0] = 52; out[1] = 22; out[2] = 48; out[3] = 32;
-		out[4] = 255; out[5] = 255; out[6] = 255; out[7] = 255;
-		NumADCSamples = 32;
-	} else if (sys_type == 3) {
-		Logger::info("Running on GEVCU3 hardware");
-		dig[0]=48; dig[1]=49; dig[2]=50; dig[3]=51;
-		adc[0][0] = 3; adc[0][1] = 255;
-		adc[1][0] = 2; adc[1][1] = 255;
-		adc[2][0] = 1; adc[2][1] = 255;
-		adc[3][0] = 0; adc[3][1] = 255;
-		out[0] = 9; out[1] = 8; out[2] = 7; out[3] = 6;
-		out[4] = 255; out[5] = 255; out[6] = 255; out[7] = 255;
-		useRawADC = true; //this board does require raw adc so force it.
-	} else if (sys_type == 4) {
-		Logger::info("Running on GEVCU 4.x hardware");
-		dig[0]=48; dig[1]=49; dig[2]=50; dig[3]=51;
-		adc[0][0] = 3; adc[0][1] = 255;
-		adc[1][0] = 2; adc[1][1] = 255;
-		adc[2][0] = 1; adc[2][1] = 255;
-		adc[3][0] = 0; adc[3][1] = 255;
-		out[0] = 4; out[1] = 5; out[2] = 6; out[3] = 7;
-		out[4] = 2; out[5] = 3; out[6] = 8; out[7] = 9;
-		useRawADC = true; //this board does require raw adc so force it.
-	} else {
-		Logger::info("Running on legacy hardware?");
-		dig[0]=11; dig[1]=9; dig[2]=13; dig[3]=12;
-		adc[0][0] = 1; adc[0][1] = 0;
-		adc[1][0] = 2; adc[1][1] = 3;
-		adc[2][0] = 4; adc[2][1] = 5;
-		adc[3][0] = 7; adc[3][1] = 6;
-		out[0] = 52; out[1] = 22; out[2] = 48; out[3] = 32;
-		out[4] = 255; out[5] = 255; out[6] = 255; out[7] = 255;
-		NumADCSamples = 32;
-	}
+	Logger::info("Running on GEVCU 4.x hardware");
+	dig[0]=48; dig[1]=49; dig[2]=50; dig[3]=51;
+	adc[0][0] = 3; adc[0][1] = 255;
+	adc[1][0] = 2; adc[1][1] = 255;
+	adc[2][0] = 1; adc[2][1] = 255;
+	adc[3][0] = 0; adc[3][1] = 255;
+	out[0] = 4; out[1] = 5; out[2] = 6; out[3] = 7;
+	out[4] = 2; out[5] = 3; out[6] = 8; out[7] = 9;
 	
 	for (i = 0; i < NUM_DIGITAL; i++) pinMode(dig[i], INPUT);
+
 	for (i = 0; i < NUM_OUTPUT; i++) {
 		if (out[i] != 255) {
 			pinMode(out[i], OUTPUT);
@@ -134,11 +87,7 @@ void setup_sys_io() {
   
   setupFastADC();
 
-  //requires the value to be contiguous in memory
   for (i = 0; i < NUM_ANALOG; i++) {
-    sysPrefs->read(EESYS_ADC0_GAIN + 4*i, &adc_comp[i].gain);
-    sysPrefs->read(EESYS_ADC0_OFFSET + 4*i, &adc_comp[i].offset);
-	//Logger::debug("ADC:%d GAIN: %d Offset: %d", i, adc_comp[i].gain, adc_comp[i].offset);
     for (int j = 0; j < NumADCSamples; j++) adc_buffer[i][j] = 0;
     adc_pointer[i] = 0;
     adc_values[i] = 0;
@@ -146,60 +95,10 @@ void setup_sys_io() {
   }
 }
 
-/*
-Some of the boards are differential and thus require subtracting one ADC from another to obtain the true value. This function
-handles that case. It also applies gain and offset
-*/
-uint16_t getDiffADC(uint8_t which) {
-  uint32_t low, high;
-  
-  low = adc_values[adc[which][0]];
-  high = adc_values[adc[which][1]];
-
-  if (low < high) {
-
-    //first remove the bias to bring us back to where it rests at zero input volts
-
-    if (low >= adc_comp[which].offset) low -= adc_comp[which].offset;
-      else low = 0;
-    if (high >= adc_comp[which].offset) high -= adc_comp[which].offset;
-      else high = 0;
-           
-    //gain multiplier is 1024 for 1 to 1 gain, less for lower gain, more for higher.
-    low *= adc_comp[which].gain;
-    low = low >> 10; //divide by 1024 again to correct for gain multiplier
-    high *= adc_comp[which].gain;
-    high = high >> 10;
-	
-    //Lastly, the input scheme is basically differential so we have to subtract
-    //low from high to get the actual value
-    high = high - low;
-  }
-  else high = 0;
-        
-  if (high > 4096) high = 0; //if it somehow got wrapped anyway then set it back to zero
-  
-  return high;
-}
-
-/*
-Exactly like the previous function but for non-differential boards (all the non-prototype boards are non-differential)
-*/
 uint16_t getRawADC(uint8_t which) {
   uint32_t val;
   
   val = adc_values[adc[which][0]];
-  
-  //first remove the bias to bring us back to where it rests at zero input volts
-
-  if (val >= adc_comp[which].offset) val -= adc_comp[which].offset;
-    else val = 0;
-        
-    //gain multiplier is 1024 for 1 to 1 gain, less for lower gain, more for higher.
-  val *= adc_comp[which].gain;
-  val = val >> 10; //divide by 1024 again to correct for gain multiplier
-	        
-  if (val > 4096) val = 0; //if it somehow got wrapped anyway then set it back to zero
   
   return val;
 }
@@ -304,9 +203,8 @@ void setupFastADC(){
               + (4 << 24) //tracking time (Value + 1) clocks
               + (2 << 28);//transfer time ((Value * 2) + 3) clocks
 
-  if (useRawADC)
-	ADC->ADC_CHER=0xF0; //enable A0-A3
-  else ADC->ADC_CHER=0xFF; //enable A0-A7
+  ADC->ADC_CHER=0xF0; //enable A0-A3
+ 
 
   NVIC_EnableIRQ(ADC_IRQn);
   ADC->ADC_IDR=~(1<<27); //dont disable the ADC interrupt for rx end
@@ -332,49 +230,25 @@ void sys_io_adc_poll() {
 	
 		//the eight or four enabled adcs are interleaved in the buffer
 		//this is a somewhat unrolled for loop with no incrementer. it's odd but it works
-		if (useRawADC) {
-			for (int i = 0; i < 256;) {	   
-				tempbuff[3] += adc_buf[obufn][i++];
-				tempbuff[2] += adc_buf[obufn][i++];
-				tempbuff[1] += adc_buf[obufn][i++];
-				tempbuff[0] += adc_buf[obufn][i++];
-			}
-		}	
-		else {
-			for (int i = 0; i < 256;) {	   
-				tempbuff[7] += adc_buf[obufn][i++];
-				tempbuff[6] += adc_buf[obufn][i++];
-				tempbuff[5] += adc_buf[obufn][i++];
-				tempbuff[4] += adc_buf[obufn][i++];
-				tempbuff[3] += adc_buf[obufn][i++];
-				tempbuff[2] += adc_buf[obufn][i++];
-				tempbuff[1] += adc_buf[obufn][i++];
-				tempbuff[0] += adc_buf[obufn][i++];
-			}
+	
+		for (int i = 0; i < 256;) {	   
+			tempbuff[3] += adc_buf[obufn][i++];
+			tempbuff[2] += adc_buf[obufn][i++];
+			tempbuff[1] += adc_buf[obufn][i++];
+			tempbuff[0] += adc_buf[obufn][i++];
 		}
-
-		//for (int i = 0; i < 256;i++) Logger::debug("%i - %i", i, adc_buf[obufn][i]);
 
 		//now, all of the ADC values are summed over 32/64 readings. So, divide by 32/64 (shift by 5/6) to get the average
 		//then add that to the old value we had stored and divide by two to average those. Lots of averaging going on.
-		if (useRawADC) {
-			for (int j = 0; j < 4; j++) {
-				adc_values[j] += (tempbuff[j] >> 6);
-				adc_values[j] = adc_values[j] >> 1;
-			}
+		for (int j = 0; j < 4; j++) {
+			adc_values[j] += (tempbuff[j] >> 6);
+			adc_values[j] = adc_values[j] >> 1;
 		}
-		else {
-			for (int j = 0; j < 8; j++) {
-				adc_values[j] += (tempbuff[j] >> 5);
-				adc_values[j] = adc_values[j] >> 1;
-				//Logger::debug("A%i: %i", j, adc_values[j]);
-			}
-		}
+
     
 		for (int i = 0; i < NUM_ANALOG; i++) {
 			int val;
-			if (useRawADC) val = getRawADC(i); 
-				else val = getDiffADC(i);
+			val = getRawADC(i); 
 //			addNewADCVal(i, val);
 //			adc_out_vals[i] = getADCAvg(i);
 			adc_out_vals[i] = val;

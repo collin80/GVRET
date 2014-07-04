@@ -27,20 +27,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  */
 
-#include "GEV-RET.h"
+#include "GVRET.h"
+#include "due_can_special.h"
 
 // The following includes are required in the .ino file by the Arduino IDE in order to properly
 // identify the required libraries for the build.
 #include <due_rtc.h>
-#include <due_wire.h>
-#include <DueTimer.h>
 
 //RTC_clock rtc_clock(XTAL); //init RTC with the external 32k crystal as a reference
 
 //Evil, global variables
-SystemIO *systemIO;
-TickHandler *tickHandler;
-MemCache *memCache;
 PerfTimer *mainLoopTimer;
 
 byte i = 0;
@@ -63,15 +59,6 @@ void setup()
     SerialUSB.print("Build number: ");
     SerialUSB.println(CFG_BUILD_NUM);
 
-    Wire.begin();
-    Logger::info("TWI init ok");
-
-    memCache = new MemCache();
-    Logger::info("add MemCache (%X)", memCache);
-    memCache->setup();
-
-    tickHandler = TickHandler::getInstance();
-
     //rtc_clock.init();
     //Now, we have no idea what the real time is but the EEPROM should have stored a time in the past.
     //It's better than nothing while we try to figure out the proper time.
@@ -85,8 +72,8 @@ void setup()
      Logger::info("RTC init ok");
      */
 
-    systemIO = SystemIO::getInstance();
-    systemIO->setup();
+    sys_early_setup();
+	setup_sys_io();
 
 	//Now, initialize canbus ports (don't actually do this here. Fix it to init canbus only when asked to)
 	CAN.init(CAN_BPS_250K);
@@ -116,10 +103,9 @@ void loop()
 	CAN.get_rx_buff(incoming); 
   }
 
-  tickHandler->process();
 
    //this should still be here. It checks for a flag set during an interrupt
-   systemIO->ADCPoll();
+   sys_io_adc_poll();
 
 #ifdef CFG_EFFICIENCY_CALCS
 	mainLoopTimer->stop();

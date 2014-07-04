@@ -190,6 +190,7 @@ uint32_t CANRaw::init(uint32_t ul_baudrate)
 	}
 
 	NVIC_EnableIRQ(m_pCan == CAN0 ? CAN0_IRQn : CAN1_IRQn); //tell the nested interrupt controller to turn on our interrupt
+	NVIC_SetPriority(m_pCan == CAN0 ? CAN0_IRQn : CAN1_IRQn, 0); //sets the highest priority for canbus interrupts.
 
 	/* Timeout or the CAN module has been synchronized with the bus. */
 	if (CAN_TIMEOUT == ul_tick) {
@@ -594,21 +595,21 @@ void CANRaw::sendFrame(CAN_FRAME& txFrame)
 {
     for (int i = 0; i < 8; i++) {
         if (((m_pCan->CAN_MB[i].CAN_MMR >> 24) & 7) == CAN_MB_TX_MODE)
-	{//is this mailbox set up as a TX box?
-	    if (m_pCan->CAN_MB[i].CAN_MSR & CAN_MSR_MRDY) 
-	    {//is it also available (not sending anything?)
-	        mailbox_set_id(i, txFrame.id, txFrame.extended);
-		mailbox_set_datalen(i, txFrame.length);
-		mailbox_set_priority(i, txFrame.priority);
-		for (uint8_t cnt = 0; cnt < 8; cnt++)
-		{    
-		    mailbox_set_databyte(i, cnt, txFrame.data.bytes[cnt]);
-		}       
-		enable_interrupt(0x01u << i); //enable the TX interrupt for this box
-		global_send_transfer_cmd((0x1u << i));
-		return; //we've sent it. mission accomplished.
-	    }
-	}
+		{//is this mailbox set up as a TX box?
+			if (m_pCan->CAN_MB[i].CAN_MSR & CAN_MSR_MRDY) 
+			{//is it also available (not sending anything?)
+				mailbox_set_id(i, txFrame.id, txFrame.extended);
+				mailbox_set_datalen(i, txFrame.length);
+				mailbox_set_priority(i, txFrame.priority);
+				for (uint8_t cnt = 0; cnt < 8; cnt++)
+				{    
+					mailbox_set_databyte(i, cnt, txFrame.data.bytes[cnt]);
+				}       
+				enable_interrupt(0x01u << i); //enable the TX interrupt for this box
+				global_send_transfer_cmd((0x1u << i));
+				return; //we've sent it. mission accomplished.
+			}
+		}
     }
 	
     //if execution got to this point then no free mailbox was found above

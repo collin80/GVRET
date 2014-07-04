@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GEV-RET", "GEV-RET.vcxproj", "{CCD14921-2C47-47D0-B6A8-2E665A9D3ABD}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GVRET", "GVRET.vcxproj", "{CCD14921-2C47-47D0-B6A8-2E665A9D3ABD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
