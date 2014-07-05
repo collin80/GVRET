@@ -84,6 +84,24 @@ void setup()
 #endif
 }
 
+void sendFrameToUSB(CAN_FRAME &frame) 
+{
+	uint8_t buff[18];
+
+	if (frame.extended) frame.id |= 1 << 31;
+	buff[0] = 0xF1;
+	buff[1] = (uint8_t)(frame.id & 0xFF);
+	buff[2] = (uint8_t)(frame.id >> 8);
+	buff[3] = (uint8_t)(frame.id >> 16);
+	buff[4] = (uint8_t)(frame.id >> 24);
+	buff[5] = frame.length;
+	for (int c = 0; c < frame.length; c++)
+	{
+		buff[6 + c] = frame.data.bytes[c];
+	}
+	buff[6 + frame.length] = 0xF2;
+	SerialUSB.write(buff, 7 + frame.length);
+}
 
 /*
 Loop executes as often as possible all the while interrupts fire in the background.
@@ -121,11 +139,13 @@ void loop()
 #endif
 
   if (CAN.rx_avail()) {
-	CAN.get_rx_buff(incoming); 
+	CAN.get_rx_buff(incoming);
+	sendFrameToUSB(incoming);
   }
 
   if (CAN2.rx_avail()) {
 	CAN2.get_rx_buff(incoming); 
+	sendFrameToUSB(incoming);
   }
 
   if (SerialUSB.available()) {
