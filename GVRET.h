@@ -41,6 +41,18 @@ void setup();
 } // extern "C"
 #endif
 
+enum STATE {
+	IDLE,
+	GET_COMMAND,
+	BUILD_CAN_FRAME,
+	TIME_SYNC,
+	GET_DIG_INPUTS,
+	GET_ANALOG_INPUTS,
+	SET_DIG_OUTPUTS,
+	SETUP_CANBUS,
+	RECEIVE_END_BYTE
+};
+
 #endif /* GVRET_H_ */
 
 
