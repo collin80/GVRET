@@ -84,9 +84,21 @@ void setup()
 #endif
 }
 
-void sendFrameToUSB(CAN_FRAME &frame) 
+//Get the value of XOR'ing all the bytes together. This creates a reasonable checksum that can be used
+//to make sure nothing too stupid has happened on the comm.
+uint8_t checksumCalc(uint8_t *buffer, int length) 
+{
+	uint8_t valu = 0;
+	for (int c = 0; c < length; c++) {
+		valu ^= buffer[c];
+	}
+	return valu;
+}
+
+void sendFrameToUSB(CAN_FRAME &frame, int whichBus) 
 {
 	uint8_t buff[18];
+	uint8_t temp;
 
 	if (frame.extended) frame.id |= 1 << 31;
 	buff[0] = 0xF1;
@@ -94,12 +106,13 @@ void sendFrameToUSB(CAN_FRAME &frame)
 	buff[2] = (uint8_t)(frame.id >> 8);
 	buff[3] = (uint8_t)(frame.id >> 16);
 	buff[4] = (uint8_t)(frame.id >> 24);
-	buff[5] = frame.length;
+	buff[5] = frame.length + (uint8_t)(whichBus << 4);
 	for (int c = 0; c < frame.length; c++)
 	{
 		buff[6 + c] = frame.data.bytes[c];
 	}
-	buff[6 + frame.length] = 0xF2;
+	temp = checksumCalc(buff, 6 + frame.length);
+	buff[6 + frame.length] = temp;
 	SerialUSB.write(buff, 7 + frame.length);
 }
 
@@ -109,8 +122,8 @@ The serial comm protocol is as follows:
 All commands start with 0xF1 this helps to synchronize if there were comm issues
 Then the next byte specifies which command this is. 
 Then the command data bytes which are specific to the command
-Lastly, 0xF2 delimits the end of the command.
-Any bytes between 0xF2 and 0xF1 are thrown away
+Lastly, there is a checksum byte just to be sure there are no missed or duped bytes
+Any bytes between checksum and 0xF1 are thrown away
 
 Yes, this should probably have been done more neatly but this way is likely to be the
 fastest and safest with limited function calls
@@ -140,12 +153,12 @@ void loop()
 
   if (CAN.rx_avail()) {
 	CAN.get_rx_buff(incoming);
-	sendFrameToUSB(incoming);
+	sendFrameToUSB(incoming, 0);
   }
 
   if (CAN2.rx_avail()) {
 	CAN2.get_rx_buff(incoming); 
-	sendFrameToUSB(incoming);
+	sendFrameToUSB(incoming, 1);
   }
 
   if (SerialUSB.available()) {
@@ -159,6 +172,7 @@ void loop()
 		   switch (in_byte) {
 		   case 0:
 			   state = BUILD_CAN_FRAME;
+			   buff[0] = 0xF1;
 			   step = 0;
 			   break;
 		   case 1:
@@ -170,9 +184,10 @@ void loop()
 			   temp8 = getDigital(0) + (getDigital(1) << 1) + (getDigital(2) << 2) + (getDigital(3) << 3);
 			   buff[0] = 0xF1;
 			   buff[1] = temp8;
-			   buff[2] = 0xF2;
+			   temp8 = checksumCalc(buff, 2);
+			   buff[2] = temp8;
 			   SerialUSB.write(buff, 3);
-			   state = RECEIVE_END_BYTE;
+			   state = IDLE;
 			   break;
 		   case 3:
 			   //immediately return data on analog inputs
@@ -189,19 +204,23 @@ void loop()
 			   temp16 = getAnalog(3);
 			   buff[7] = temp16 & 0xFF;
 			   buff[8] = uint8_t(temp16 >> 8);
-			   buff[9] = 0xF2;
+			   temp8 = checksumCalc(buff, 9);
+			   buff[9] = temp8;
 			   SerialUSB.write(buff, 10);
-			   state = RECEIVE_END_BYTE;
+			   state = IDLE;
 			   break;
 		   case 4:
 			   state = SET_DIG_OUTPUTS;
+			   buff[0] = 0xF1;
 			   break;
 		   case 5:
 			   state = SETUP_CANBUS;
+			   buff[0] = 0xF1;
 			   break;
 		   }
 		   break;
 	   case BUILD_CAN_FRAME:
+		   buff[1 + step] = in_byte;
 		   switch (step) {
 		   case 0:
 			   build_out_frame.id = in_byte;
@@ -226,17 +245,19 @@ void loop()
 			   if (build_out_frame.length > 8) build_out_frame.length = 8;
 			   break;
 		   default:
-			   if (step < build_out_frame.length + 4)
+			   if (step < build_out_frame.length + 5)
 			   {
 			      build_out_frame.data.bytes[step - 5] = in_byte;
 			   }
 			   else 
 			   {
-				   build_out_frame.data.bytes[step - 5] = in_byte;
-				   state = RECEIVE_END_BYTE;
-				   //frame is built as of this point. We can send it
-				   //Need to find a way for sending end to specify which bus though!
-				   CAN.sendFrame(build_out_frame);
+				   state = IDLE;
+				   //this would be the checksum byte. Compute and compare.
+				   temp8 = checksumCalc(buff, step);
+				   if (temp8 == in_byte) 
+				   {
+						CAN.sendFrame(build_out_frame);
+				   }
 			   }
 			   break;
 		   }
@@ -244,15 +265,17 @@ void loop()
 		   break;
 	   case TIME_SYNC:
 		   break;
-	   case SET_DIG_OUTPUTS:
+	   case SET_DIG_OUTPUTS: //todo: validate the XOR byte
+		   buff[1] = in_byte;
+		   //temp8 = checksumCalc(buff, 2);
 		   for (int c = 0; c < 8; c++) 
 		   {
 			   if (in_byte & (1 << c)) setOutput(c, true);
 			   else setOutput(c, false);
 		   }
-		   state = RECEIVE_END_BYTE;
+		   state = IDLE;
 		   break;
-	   case SETUP_CANBUS:
+	   case SETUP_CANBUS: //todo: validate checksum
 		   switch (step)
 		   {
 		   case 0:
@@ -296,13 +319,10 @@ void loop()
 			   {
 				   CAN2.disable();
 			   }
-			   state = RECEIVE_END_BYTE;
+			   state = IDLE;
 			   break;
 		   }
 		   step++;
-		   break;
-	   case RECEIVE_END_BYTE:
-		   if (in_byte == 0xF2) state = IDLE;
 		   break;
 	   }
 	}
