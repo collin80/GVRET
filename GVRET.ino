@@ -102,18 +102,19 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 
 	if (frame.extended) frame.id |= 1 << 31;
 	buff[0] = 0xF1;
-	buff[1] = (uint8_t)(frame.id & 0xFF);
-	buff[2] = (uint8_t)(frame.id >> 8);
-	buff[3] = (uint8_t)(frame.id >> 16);
-	buff[4] = (uint8_t)(frame.id >> 24);
-	buff[5] = frame.length + (uint8_t)(whichBus << 4);
+	buff[1] = 0; //0 = canbus frame sending
+	buff[2] = (uint8_t)(frame.id & 0xFF);
+	buff[3] = (uint8_t)(frame.id >> 8);
+	buff[4] = (uint8_t)(frame.id >> 16);
+	buff[5] = (uint8_t)(frame.id >> 24);
+	buff[6] = frame.length + (uint8_t)(whichBus << 4);
 	for (int c = 0; c < frame.length; c++)
 	{
-		buff[6 + c] = frame.data.bytes[c];
+		buff[7 + c] = frame.data.bytes[c];
 	}
-	temp = checksumCalc(buff, 6 + frame.length);
+	temp = checksumCalc(buff, 7 + frame.length);
 	buff[6 + frame.length] = temp;
-	SerialUSB.write(buff, 7 + frame.length);
+	SerialUSB.write(buff, 8 + frame.length);
 }
 
 /*
