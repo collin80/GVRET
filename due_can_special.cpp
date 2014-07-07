@@ -17,7 +17,7 @@
 */
 
 
-#include "due_can.h"
+#include "due_can_special.h"
 #include "sn65hvd234.h"
 
 /** Define the timemark mask. */

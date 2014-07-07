@@ -28,7 +28,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define GVRET_H_
 
 #include <Arduino.h>
-#include "due_can.h"
+#include "due_can_special.h"
 #include "sys_io.h"
 #include "PerfTimer.h"
 
