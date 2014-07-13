@@ -53,6 +53,7 @@ void initSysEEPROM()
 
 void setup()
 {
+	//delay(7000);
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
@@ -76,12 +77,31 @@ void setup()
 	setup_sys_io();
 
 	//Now, initialize canbus ports (don't actually do this here. Fix it to init canbus only when asked to)
-//	CAN.init(CAN_BPS_500K);
+	//CAN.init(CAN_BPS_500K);
 //	CAN2.init(CAN_BPS_250K);
+
+  SerialUSB.print("Done with init\n");
 
 #ifdef CFG_EFFICIENCY_CALCS
 	mainLoopTimer = new PerfTimer();
 #endif
+}
+
+void setPromiscuousMode() {
+   //By default there are 7 mailboxes for each device that are RX boxes
+  //This sets each mailbox to have an open filter that will accept extended
+  //or standard frames
+  int filter;
+  //extended
+  for (filter = 0; filter < 3; filter++) {
+	CAN.setRXFilter(filter, 0, 0, true);
+	CAN2.setRXFilter(filter, 0, 0, true);
+  }  
+  //standard
+  for (int filter = 3; filter < 7; filter++) {
+	CAN.setRXFilter(filter, 0, 0, false);
+	CAN2.setRXFilter(filter, 0, 0, false);
+  }  
 }
 
 //Get the value of XOR'ing all the bytes together. This creates a reasonable checksum that can be used
@@ -113,7 +133,7 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 		buff[7 + c] = frame.data.bytes[c];
 	}
 	temp = checksumCalc(buff, 7 + frame.length);
-	buff[6 + frame.length] = temp;
+	buff[7 + frame.length] = temp;
 	SerialUSB.write(buff, 8 + frame.length);
 }
 
@@ -131,6 +151,7 @@ fastest and safest with limited function calls
 */
 void loop()
 {
+	static int loops = 0;
 	CAN_FRAME incoming;
 	CAN_FRAME build_out_frame;
 	int in_byte;
@@ -151,6 +172,12 @@ void loop()
 
 	mainLoopTimer->start();
 #endif
+
+  loops++;
+  if (loops > 200000ul) {
+	  loops = 0;
+	  //SerialUSB.print(".");
+  }
 
   if (CAN.rx_avail()) {
 	CAN.get_rx_buff(incoming);
@@ -216,6 +243,7 @@ void loop()
 			   break;
 		   case 5:
 			   state = SETUP_CANBUS;
+			   step = 0;
 			   buff[0] = 0xF1;
 			   break;
 		   }
@@ -323,6 +351,7 @@ void loop()
 			   state = IDLE;
 			   break;
 		   }
+		   setPromiscuousMode();
 		   step++;
 		   break;
 	   }

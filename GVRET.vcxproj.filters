@@ -15,25 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="due_can.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="due_wire.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Logger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MemCache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PerfTimer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sn65hvd234.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TickHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Visual Micro\.GVRET.vsarduino.h">
@@ -45,18 +33,15 @@
     <ClInclude Include="sys_io.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="due_can_special.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="due_can.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="due_wire.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Logger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MemCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PerfTimer.cpp">
@@ -65,10 +50,10 @@
     <ClCompile Include="sn65hvd234.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TickHandler.cpp">
+    <ClCompile Include="sys_io.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sys_io.cpp">
+    <ClCompile Include="due_can_special.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
