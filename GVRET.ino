@@ -4,7 +4,7 @@
  Created: 7/2/2014 10:10:14 PM
  Author: Collin Kidder
 
-Copyright (c) 2013 Collin Kidder, Michael Neuweiler, Charles Galpin
+Copyright (c) 2014 Collin Kidder, Michael Neuweiler, Charles Galpin
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -32,7 +32,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // The following includes are required in the .ino file by the Arduino IDE in order to properly
 // identify the required libraries for the build.
-#include <due_rtc.h>
+//#include <due_rtc.h>
 
 //RTC_clock rtc_clock(XTAL); //init RTC with the external 32k crystal as a reference
 
@@ -40,6 +40,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 PerfTimer *mainLoopTimer;
 
 byte i = 0;
+
+bool binaryComm = true;
 
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
@@ -119,22 +121,38 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 {
 	uint8_t buff[18];
 	uint8_t temp;
-
-	if (frame.extended) frame.id |= 1 << 31;
-	buff[0] = 0xF1;
-	buff[1] = 0; //0 = canbus frame sending
-	buff[2] = (uint8_t)(frame.id & 0xFF);
-	buff[3] = (uint8_t)(frame.id >> 8);
-	buff[4] = (uint8_t)(frame.id >> 16);
-	buff[5] = (uint8_t)(frame.id >> 24);
-	buff[6] = frame.length + (uint8_t)(whichBus << 4);
-	for (int c = 0; c < frame.length; c++)
-	{
-		buff[7 + c] = frame.data.bytes[c];
+	if (binaryComm) {
+		if (frame.extended) frame.id |= 1 << 31;
+		buff[0] = 0xF1;
+		buff[1] = 0; //0 = canbus frame sending
+		buff[2] = (uint8_t)(frame.id & 0xFF);
+		buff[3] = (uint8_t)(frame.id >> 8);
+		buff[4] = (uint8_t)(frame.id >> 16);
+		buff[5] = (uint8_t)(frame.id >> 24);
+		buff[6] = frame.length + (uint8_t)(whichBus << 4);
+		for (int c = 0; c < frame.length; c++)
+		{
+			buff[7 + c] = frame.data.bytes[c];
+		}
+		temp = checksumCalc(buff, 7 + frame.length);
+		buff[7 + frame.length] = temp;
+		SerialUSB.write(buff, 8 + frame.length);
 	}
-	temp = checksumCalc(buff, 7 + frame.length);
-	buff[7 + frame.length] = temp;
-	SerialUSB.write(buff, 8 + frame.length);
+	else 
+	{
+		SerialUSB.print(frame.id, HEX);
+		if (frame.extended) SerialUSB.print(" X ");
+		else SerialUSB.print(" S ");
+		SerialUSB.print(whichBus);
+		SerialUSB.print(" ");
+		SerialUSB.print(frame.length);
+		for (int c = 0; c < frame.length; c++)
+		{
+			SerialUSB.print(" ");
+			SerialUSB.print(frame.data.bytes[c], HEX);
+		}
+		SerialUSB.println();
+	}
 }
 
 /*
@@ -161,6 +179,7 @@ void loop()
 	static int build_int;
 	uint8_t temp8;
 	uint16_t temp16;
+	static bool markToggle = false;
 
 #ifdef CFG_EFFICIENCY_CALCS
 	static int counts = 0;
@@ -172,6 +191,20 @@ void loop()
 
 	mainLoopTimer->start();
 #endif
+	
+	//there is no switch debouncing here at the moment
+	//if mark triggering causes bounce then debounce this later on.
+	if (getDigital(0)) {
+		if (!markToggle) {
+			markToggle = true;
+			if (!binaryComm) SerialUSB.println("MARK TRIGGERED");
+			else 
+			{ //figure out some sort of binary comm for the mark.
+			}
+		}
+	}
+	else markToggle = false;
+	
 
   loops++;
   if (loops > 200000ul) {
@@ -195,6 +228,7 @@ void loop()
 	   switch (state) {
 	   case IDLE:
 		   if (in_byte == 0xF1) state = GET_COMMAND;
+		   if (in_byte == 0xE7) binaryComm = true;
 		   break;
 	   case GET_COMMAND:
 		   switch (in_byte) {
