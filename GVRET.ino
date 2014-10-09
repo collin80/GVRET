@@ -28,16 +28,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "GVRET.h"
-#include "due_can_special.h"
-
-// The following includes are required in the .ino file by the Arduino IDE in order to properly
-// identify the required libraries for the build.
-//#include <due_rtc.h>
-
-//RTC_clock rtc_clock(XTAL); //init RTC with the external 32k crystal as a reference
-
-//Evil, global variables
-PerfTimer *mainLoopTimer;
+#include "due_can.h"
 
 byte i = 0;
 
@@ -62,19 +53,6 @@ void setup()
     SerialUSB.print("Build number: ");
     SerialUSB.println(CFG_BUILD_NUM);
 
-    //rtc_clock.init();
-    //Now, we have no idea what the real time is but the EEPROM should have stored a time in the past.
-    //It's better than nothing while we try to figure out the proper time.
-    /*
-     uint32_t temp;
-     sysPrefs->read(EESYS_RTC_TIME, &temp);
-     rtc_clock.change_time(temp);
-     sysPrefs->read(EESYS_RTC_DATE, &temp);
-     rtc_clock.change_date(temp);
-
-     Logger::info("RTC init ok");
-     */
-
     sys_early_setup();
 	setup_sys_io();
 
@@ -83,10 +61,6 @@ void setup()
 //	CAN2.init(CAN_BPS_250K);
 
   SerialUSB.print("Done with init\n");
-
-#ifdef CFG_EFFICIENCY_CALCS
-	mainLoopTimer = new PerfTimer();
-#endif
 }
 
 void setPromiscuousMode() {
@@ -181,17 +155,6 @@ void loop()
 	uint16_t temp16;
 	static bool markToggle = false;
 
-#ifdef CFG_EFFICIENCY_CALCS
-	static int counts = 0;
-	counts++;
-	if (counts > 200000) {
-		counts = 0;
-		mainLoopTimer->printValues();
-	}
-
-	mainLoopTimer->start();
-#endif
-	
 	//there is no switch debouncing here at the moment
 	//if mark triggering causes bounce then debounce this later on.
 	if (getDigital(0)) {
@@ -394,7 +357,4 @@ void loop()
    //this should still be here. It checks for a flag set during an interrupt
    sys_io_adc_poll();
 
-#ifdef CFG_EFFICIENCY_CALCS
-	mainLoopTimer->stop();
-#endif
 }
