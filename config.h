@@ -33,10 +33,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#include "due_can_special.h"
+#include "due_can.h"
 
 #define CFG_BUILD_NUM	300
-#define CFG_VERSION "GVRET alpha 2014-07-04"
+#define CFG_VERSION "GVRET alpha 2014-10-08"
+
+//Define only one from the below options.
+//#define GEVCU
+#define CANDUE
+
+
+
+#ifdef CANDUE
+#define EEPROM_WP_PIN	18
+#define CAN0_EN_PIN		50
+#define CAN1_EN_PIN		48
+#define USE_SD
+#define SDCARD_SEL		10
+#endif
+
+#ifdef GEVCU
+#define EEPROM_WP_PIN	19
+#define CAN0_EN_PIN		255  //GEVCU has a different transceiver with no enable pin
+#define CAN1_EN_PIN		255
+#endif
 
 /*
  * SERIAL CONFIGURATION

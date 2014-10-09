@@ -29,6 +29,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "GVRET.h"
 #include "due_can.h"
+#include "SPI.h"
+#include "SD.h"
+#include "due_wire.h"
+#include "Wire_EEPROM.h"
 
 byte i = 0;
 
@@ -50,6 +54,17 @@ void setup()
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
+	Wire.begin();
+	EEPROM.setWPPin(EEPROM_WP_PIN);
+
+#ifdef USE_SD	
+	if (SD.begin(SDCARD_SEL)) 
+	{
+		SerialUSB.println("SD Init failure!");
+	}
+#endif
+
+
     SerialUSB.print("Build number: ");
     SerialUSB.println(CFG_BUILD_NUM);
 
@@ -70,13 +85,13 @@ void setPromiscuousMode() {
   int filter;
   //extended
   for (filter = 0; filter < 3; filter++) {
-	CAN.setRXFilter(filter, 0, 0, true);
-	CAN2.setRXFilter(filter, 0, 0, true);
+	Can0.setRXFilter(filter, 0, 0, true);
+	Can1.setRXFilter(filter, 0, 0, true);
   }  
   //standard
   for (int filter = 3; filter < 7; filter++) {
-	CAN.setRXFilter(filter, 0, 0, false);
-	CAN2.setRXFilter(filter, 0, 0, false);
+	Can0.setRXFilter(filter, 0, 0, false);
+	Can1.setRXFilter(filter, 0, 0, false);
   }  
 }
 
@@ -175,13 +190,13 @@ void loop()
 	  //SerialUSB.print(".");
   }
 
-  if (CAN.rx_avail()) {
-	CAN.get_rx_buff(incoming);
+  if (Can0.available() > 0) {
+	Can0.read(incoming);
 	sendFrameToUSB(incoming, 0);
   }
 
-  if (CAN2.rx_avail()) {
-	CAN2.get_rx_buff(incoming); 
+  if (Can1.available()) {
+	Can1.read(incoming); 
 	sendFrameToUSB(incoming, 1);
   }
 
@@ -282,7 +297,7 @@ void loop()
 				   temp8 = checksumCalc(buff, step);
 				   if (temp8 == in_byte) 
 				   {
-						CAN.sendFrame(build_out_frame);
+						Can0.sendFrame(build_out_frame);
 				   }
 			   }
 			   break;
@@ -318,11 +333,11 @@ void loop()
 			   if (build_int > 0) 
 			   {
 				   if (build_int > 1000000) build_int = 1000000;
-				   CAN.init(build_int);
+				   Can0.begin(build_int, CAN0_EN_PIN);
 			   }
 			   else //disable first canbus
 			   {
-				   CAN.disable();
+				   Can0.disable();
 			   }
 			   break;
 		   case 4:
@@ -339,11 +354,11 @@ void loop()
 			   if (build_int > 0) 
 			   {
 				   if (build_int > 1000000) build_int = 1000000;
-				   CAN2.init(build_int);
+				   Can1.begin(build_int, CAN1_EN_PIN);
 			   }
 			   else //disable first canbus
 			   {
-				   CAN2.disable();
+				   Can1.disable();
 			   }
 			   state = IDLE;
 			   break;
@@ -356,5 +371,4 @@ void loop()
   }
    //this should still be here. It checks for a flag set during an interrupt
    sys_io_adc_poll();
-
 }
