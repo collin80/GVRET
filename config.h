@@ -37,11 +37,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define CFG_BUILD_NUM	300
 #define CFG_VERSION "GVRET alpha 2014-10-08"
+#define EEPROM_PAGE		10
 
 //Define only one from the below options.
 //#define GEVCU
 #define CANDUE
-
 
 
 #ifdef CANDUE
@@ -50,6 +50,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define CAN1_EN_PIN		48
 #define USE_SD
 #define SDCARD_SEL		10
+#define BUF_SIZE		8192
 #endif
 
 #ifdef GEVCU

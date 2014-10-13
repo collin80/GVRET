@@ -28,24 +28,102 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "GVRET.h"
-#include "due_can.h"
-#include "SPI.h"
-#include "SD.h"
-#include "due_wire.h"
-#include "Wire_EEPROM.h"
+#include <due_can.h>
+#include <SDFat.h>
+#include <SdFatUtil.h>
+#include <due_wire.h>
+#include <Wire_EEPROM.h>
+
+/*
+Notes on project:
+This code should be autonomous after being set up. That is, you should be able to set it up
+then disconnect it and move over to a car or other device to monitor, plug it in, and have everything
+use the settings you set up without any external input.
+*/
+
+struct FILTER {  //should be 10 bytes
+	uint32_t id;
+	uint32_t mask;
+	bool extended;
+	bool enabled;
+};
+
+struct EEPROMSettings { //222 bytes right now. Must stay under 256
+	uint8_t version;
+	
+	uint32_t CAN0Speed;
+	uint32_t CAN1Speed;
+	bool CAN0_Enabled;
+	bool CAN1_Enabled;
+	FILTER CAN0Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
+	FILTER CAN1Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
+
+	bool useBinarySerialComm; //use a binary protocol on the serial link or human readable format?
+	bool useBinaryFile; //store data in file in binary or text? Binary is more compact and thus faster/more efficient
+
+	char fileNameBase[40]; //Base filename to use
+	char* fileNameExt[4]; //extension to use
+	uint16_t fileNum; //incrementing value to append to filename if we create a new file each time
+	bool appendFile; //start a new file every power up or append to current?
+
+	uint16_t valid; //stores a validity token to make sure EEPROM is not corrupt
+};
 
 byte i = 0;
 
 bool binaryComm = true;
 
+uint8_t buf[BUF_SIZE];
+EEPROMSettings settings;
+
+// file system on sdcard
+SdFat sd;
+ 
+SdFile file; //allow to open a file
+
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
 void initSysEEPROM()
 {
-    //three temporary storage places to make saving to EEPROM easy
-    uint8_t eight;
-    uint16_t sixteen;
-    uint32_t thirtytwo;
+	EEPROM.read(EEPROM_PAGE, settings);
+
+	if (settings.version != 0x10) //if settings are not the current version then erase them and set defaults
+	{
+		settings.appendFile = true;
+		settings.CAN0Speed = 250000;
+		settings.CAN0_Enabled = false;
+		settings.CAN1Speed = 250000;
+		settings.CAN1_Enabled = false;
+		sprintf((char *)settings.fileNameBase, "CANBUS");
+		sprintf((char *)settings.fileNameExt, "TXT");
+		settings.fileNum = 1;
+		for (int i = 0; i < 3; i++) 
+		{
+			settings.CAN0Filters[i].enabled = true;
+			settings.CAN0Filters[i].extended = true;
+			settings.CAN0Filters[i].id = 0;
+			settings.CAN0Filters[i].mask = 0;
+			settings.CAN1Filters[i].enabled = true;
+			settings.CAN1Filters[i].extended = true;
+			settings.CAN1Filters[i].id = 0;
+			settings.CAN1Filters[i].mask = 0;
+		}
+		for (int j = 3; i < 7; i++)
+		{
+			settings.CAN0Filters[i].enabled = true;
+			settings.CAN0Filters[i].extended = false;
+			settings.CAN0Filters[i].id = 0;
+			settings.CAN0Filters[i].mask = 0;
+			settings.CAN1Filters[i].enabled = true;
+			settings.CAN1Filters[i].extended = false;
+			settings.CAN1Filters[i].id = 0;
+			settings.CAN1Filters[i].mask = 0;
+		}
+		settings.useBinaryFile = false;
+		settings.useBinarySerialComm = false;
+		settings.valid = 0; //not used right now
+		EEPROM.write(EEPROM_PAGE, settings);
+	}
 }
 
 void setup()
@@ -58,12 +136,8 @@ void setup()
 	EEPROM.setWPPin(EEPROM_WP_PIN);
 
 #ifdef USE_SD	
-	if (SD.begin(SDCARD_SEL)) 
-	{
-		SerialUSB.println("SD Init failure!");
-	}
+	if (!sd.begin(SDCARD_SEL, SPI_FULL_SPEED)) sd.initErrorHalt(); //init at 42MHz
 #endif
-
 
     SerialUSB.print("Build number: ");
     SerialUSB.println(CFG_BUILD_NUM);
@@ -71,11 +145,30 @@ void setup()
     sys_early_setup();
 	setup_sys_io();
 
-	//Now, initialize canbus ports (don't actually do this here. Fix it to init canbus only when asked to)
-	//CAN.init(CAN_BPS_500K);
-//	CAN2.init(CAN_BPS_250K);
+	if (settings.CAN0_Enabled)
+	{
+		Can0.begin(settings.CAN0Speed, CAN0_EN_PIN);
+	}
+	if (settings.CAN1_Enabled)
+	{
+		Can1.begin(settings.CAN1Speed, CAN1_EN_PIN);
+	}
 
-  SerialUSB.print("Done with init\n");
+	for (int i = 0; i < 7; i++) 
+	{
+		if (settings.CAN0Filters[i].enabled) 
+		{
+			Can0.setRXFilter(i, settings.CAN0Filters[i].id,
+				settings.CAN0Filters[i].mask, settings.CAN0Filters[i].extended);
+		}
+		if (settings.CAN1Filters[i].enabled)
+		{
+			Can1.setRXFilter(i, settings.CAN1Filters[i].id,
+				settings.CAN1Filters[i].mask, settings.CAN1Filters[i].extended);
+		}
+	}
+
+	SerialUSB.print("Done with init\n");
 }
 
 void setPromiscuousMode() {
@@ -206,7 +299,7 @@ void loop()
 	   switch (state) {
 	   case IDLE:
 		   if (in_byte == 0xF1) state = GET_COMMAND;
-		   if (in_byte == 0xE7) binaryComm = true;
+		   if (in_byte == 0xE7) settings.useBinarySerialComm = true;
 		   break;
 	   case GET_COMMAND:
 		   switch (in_byte) {
