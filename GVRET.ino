@@ -28,6 +28,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "GVRET.h"
+#include "config.h"
 #include <due_can.h>
 #include <SDFat.h>
 #include <SdFatUtil.h>
@@ -41,40 +42,13 @@ then disconnect it and move over to a car or other device to monitor, plug it in
 use the settings you set up without any external input.
 */
 
-struct FILTER {  //should be 10 bytes
-	uint32_t id;
-	uint32_t mask;
-	bool extended;
-	bool enabled;
-};
-
-struct EEPROMSettings { //222 bytes right now. Must stay under 256
-	uint8_t version;
-	
-	uint32_t CAN0Speed;
-	uint32_t CAN1Speed;
-	bool CAN0_Enabled;
-	bool CAN1_Enabled;
-	FILTER CAN0Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
-	FILTER CAN1Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
-
-	bool useBinarySerialComm; //use a binary protocol on the serial link or human readable format?
-	bool useBinaryFile; //store data in file in binary or text? Binary is more compact and thus faster/more efficient
-
-	char fileNameBase[40]; //Base filename to use
-	char* fileNameExt[4]; //extension to use
-	uint16_t fileNum; //incrementing value to append to filename if we create a new file each time
-	bool appendFile; //start a new file every power up or append to current?
-
-	uint16_t valid; //stores a validity token to make sure EEPROM is not corrupt
-};
-
 byte i = 0;
 
 bool binaryComm = true;
 
 uint8_t buf[BUF_SIZE];
 EEPROMSettings settings;
+SystemSettings SysSettings;
 
 // file system on sdcard
 SdFat sd;
@@ -83,7 +57,7 @@ SdFile file; //allow to open a file
 
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
-void initSysEEPROM()
+void loadSettings()
 {
 	EEPROM.read(EEPROM_PAGE, settings);
 
@@ -121,8 +95,28 @@ void initSysEEPROM()
 		}
 		settings.useBinaryFile = false;
 		settings.useBinarySerialComm = false;
+		settings.logLevel = 1; //info
+		settings.sysType = 0; //CANDUE as default
 		settings.valid = 0; //not used right now
 		EEPROM.write(EEPROM_PAGE, settings);
+	}
+
+	Logger::setLoglevel((Logger::LogLevel)settings.logLevel);
+
+	if (settings.sysType == 1) { //GEVCU
+		SysSettings.eepromWPPin = GEVCU_EEPROM_WP_PIN;
+		SysSettings.CAN0EnablePin = GEVCU_CAN0_EN_PIN;
+		SysSettings.CAN1EnablePin = GEVCU_CAN1_EN_PIN;
+		SysSettings.useSD = false;
+		SysSettings.SDCardSelPin = GEVCU_SDCARD_SEL;
+	}
+	else //CANDUE
+	{
+		SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
+		SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
+		SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
+		SysSettings.useSD = true;
+		SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
 	}
 }
 
@@ -133,11 +127,15 @@ void setup()
     digitalWrite(BLINK_LED, LOW);
 
 	Wire.begin();
-	EEPROM.setWPPin(EEPROM_WP_PIN);
+	EEPROM.setWPPin(18); // a guess...
 
-#ifdef USE_SD	
-	if (!sd.begin(SDCARD_SEL, SPI_FULL_SPEED)) sd.initErrorHalt(); //init at 42MHz
-#endif
+	loadSettings();
+
+	EEPROM.setWPPin(SysSettings.eepromWPPin);
+
+    if (SysSettings.useSD) {	
+		if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) sd.initErrorHalt(); //init at 42MHz
+	}
 
     SerialUSB.print("Build number: ");
     SerialUSB.println(CFG_BUILD_NUM);
@@ -147,11 +145,11 @@ void setup()
 
 	if (settings.CAN0_Enabled)
 	{
-		Can0.begin(settings.CAN0Speed, CAN0_EN_PIN);
+		Can0.begin(settings.CAN0Speed, SysSettings.CAN0EnablePin);
 	}
 	if (settings.CAN1_Enabled)
 	{
-		Can1.begin(settings.CAN1Speed, CAN1_EN_PIN);
+		Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
 	}
 
 	for (int i = 0; i < 7; i++) 
@@ -426,7 +424,7 @@ void loop()
 			   if (build_int > 0) 
 			   {
 				   if (build_int > 1000000) build_int = 1000000;
-				   Can0.begin(build_int, CAN0_EN_PIN);
+				   Can0.begin(build_int, SysSettings.CAN0EnablePin);
 			   }
 			   else //disable first canbus
 			   {
@@ -447,7 +445,7 @@ void loop()
 			   if (build_int > 0) 
 			   {
 				   if (build_int > 1000000) build_int = 1000000;
-				   Can1.begin(build_int, CAN1_EN_PIN);
+				   Can1.begin(build_int, SysSettings.CAN1EnablePin);
 			   }
 			   else //disable first canbus
 			   {
