@@ -211,7 +211,7 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 {
 	uint8_t buff[18];
 	uint8_t temp;
-	if (binaryComm) {
+	if (settings.useBinarySerialComm) {
 		if (frame.extended) frame.id |= 1 << 31;
 		buff[0] = 0xF1;
 		buff[1] = 0; //0 = canbus frame sending
