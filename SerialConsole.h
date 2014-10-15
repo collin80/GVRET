@@ -52,6 +52,7 @@ private:
 	void handleConsoleCmd();
 	void handleShortCmd();
     void handleConfigCmd();
+	bool handleFilterSet(uint8_t bus, uint8_t filter, char *values);
 };
 
 #endif /* SERIALCONSOLE_H_ */

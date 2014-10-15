@@ -27,6 +27,8 @@
  */
 
 #include "SerialConsole.h"
+#include <due_wire.h>
+#include <Wire_EEPROM.h>
 
 SerialConsole::SerialConsole() {
 	init();
@@ -59,12 +61,13 @@ void SerialConsole::printMenu() {
     SerialUSB.println();
 
     Logger::console("LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", Logger::getLogLevel());
+	Logger::console("SYSTYPE=%i - set board type (0=CANDue, 1=GEVCU)", settings.sysType);
 	SerialUSB.println();
 
 	Logger::console("CAN0EN=%i - Enable/Disable CAN0 (0 = Disable, 1 = Enable)", settings.CAN0_Enabled);
 	Logger::console("CAN0SPEED=%i - Set speed of CAN0 in baud (125000, 250000, etc)", settings.CAN0Speed);
 	for (int i = 0; i < 8; i++) {
-		sprintf(buff, "CAN0FILTER%i=%%i,%%i,%%i,%%i (ID, Mask, Extended, Enabled)", i);
+		sprintf(buff, "CAN0FILTER%i=0x%%x,0x%%x,%%i,%%i (ID, Mask, Extended, Enabled)", i);
 		Logger::console(buff, settings.CAN0Filters[i].id, settings.CAN0Filters[i].mask,
 			settings.CAN0Filters[i].extended, settings.CAN0Filters[i].enabled);
 	}
@@ -73,9 +76,9 @@ void SerialConsole::printMenu() {
 	Logger::console("CAN1EN=%i - Enable/Disable CAN1 (0 = Disable, 1 = Enable)", settings.CAN1_Enabled);
 	Logger::console("CAN1SPEED=%i - Set speed of CAN1 in baud (125000, 250000, etc)", settings.CAN1Speed);
 	for (int i = 0; i < 8; i++) {
-		sprintf(buff, "CAN0FILTER%i=%%i,%%i,%%i,%%i (ID, Mask, Extended, Enabled)", i);
-		Logger::console(buff, settings.CAN0Filters[i].id, settings.CAN0Filters[i].mask,
-			settings.CAN0Filters[i].extended, settings.CAN0Filters[i].enabled);
+		sprintf(buff, "CAN1FILTER%i=0x%%x,0x%%x,%%i,%%i (ID, Mask, Extended, Enabled)", i);
+		Logger::console(buff, settings.CAN1Filters[i].id, settings.CAN1Filters[i].mask,
+			settings.CAN1Filters[i].extended, settings.CAN1Filters[i].enabled);
 	}
 	SerialUSB.println();
 
@@ -112,6 +115,7 @@ void SerialConsole::handleConsoleCmd() {
 		} else { //if cmd over 1 char then assume (for now) that it is a config line
 			handleConfigCmd();
 		}
+		ptrBuffer = 0; //reset line counter once the line has been processed
 	}
 }
 
@@ -121,6 +125,8 @@ void SerialConsole::handleConsoleCmd() {
 void SerialConsole::handleConfigCmd() {
 	int i;
 	int newValue;
+	char *newString;
+	bool writeEEPROM = false;
 
 	//Logger::debug("Cmd size: %i", ptrBuffer);
 	if (ptrBuffer < 6)
@@ -142,298 +148,162 @@ void SerialConsole::handleConfigCmd() {
 	}
 
 	// strtol() is able to parse also hex values (e.g. a string "0xCAFE"), useful for enable/disable by device id
-	newValue = strtol((char *) (cmdBuffer + i), NULL, 0);
+	newValue = strtol((char *) (cmdBuffer + i), NULL, 0); //try to turn the string into a number
+	newString = (char *)(cmdBuffer + i); //leave it as a string
 
 	cmdString.toUpperCase();
-/*
-	if (cmdString == String("TORQ") && motorConfig) {
-		Logger::console("Setting Torque Limit to %i", newValue);
-		motorConfig->torqueMax = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("RPM") && motorConfig) {
-		Logger::console("Setting RPM Limit to %i", newValue);
-		motorConfig->speedMax = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("REVLIM") && motorConfig) {
-		Logger::console("Setting Reverse Limit to %i", newValue);
-		motorConfig->reversePercent = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("TPOT") && acceleratorConfig) {
-		Logger::console("Setting # of Throttle Pots to %i", newValue);
-		acceleratorConfig->numberPotMeters = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TTYPE") && acceleratorConfig) {
-		Logger::console("Setting Throttle Subtype to %i", newValue);
-		acceleratorConfig->throttleSubType = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("T1ADC") && acceleratorConfig) {
-		Logger::console("Setting Throttle1 ADC pin to %i", newValue);
-		acceleratorConfig->AdcPin1 = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("T1MN") && acceleratorConfig) {
-		Logger::console("Setting Throttle1 Min to %i", newValue);
-		acceleratorConfig->minimumLevel1 = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("T1MX") && acceleratorConfig) {
-		Logger::console("Setting Throttle1 Max to %i", newValue);
-		acceleratorConfig->maximumLevel1 = newValue;
-		accelerator->saveConfiguration();
+
+	if (cmdString == String("CAN0EN")) {
+		if (newValue < 0) newValue = 0;
+		if (newValue > 1) newValue = 1;
+		Logger::console("Setting CAN0 Enabled to %i", newValue);
+		settings.CAN0_Enabled = newValue;
+		writeEEPROM = true;
+	} else if (cmdString == String("CAN1EN")) {
+		if (newValue < 0) newValue = 0;
+		if (newValue > 1) newValue = 1;
+		Logger::console("Setting CAN1 Enabled to %i", newValue);
+		settings.CAN1_Enabled = newValue;
+		writeEEPROM = true;
+	} else if (cmdString == String("CAN0SPEED")) {
+		if (newValue > 0 && newValue <= 1000000) 
+		{
+			Logger::console("Setting CAN0 Baud Rate to %i", newValue);
+			settings.CAN0Speed = newValue;
+			writeEEPROM = true;
+		}
+		else Logger::console("Invalid baud rate! Enter a value 1 - 1000000");
+	} else if (cmdString == String("CAN1SPEED")) {
+		if (newValue > 0 && newValue <= 1000000)
+		{
+			Logger::console("Setting CAN1 Baud Rate to %i", newValue);
+			settings.CAN1Speed = newValue;
+			writeEEPROM = true;
+		}
+		else Logger::console("Invalid baud rate! Enter a value 1 - 1000000");
+	} else if (cmdString == String("CAN0FILTER0")) { //someone should kick me in the face for this laziness... FIX THIS!
+		handleFilterSet(0, 0, newString);
 	}
-	else if (cmdString == String("T2ADC") && acceleratorConfig) {
-		Logger::console("Setting Throttle2 ADC pin to %i", newValue);
-		acceleratorConfig->AdcPin2 = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("T2MN") && acceleratorConfig) {
-		Logger::console("Setting Throttle2 Min to %i", newValue);
-		acceleratorConfig->minimumLevel2 = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("T2MX") && acceleratorConfig) {
-		Logger::console("Setting Throttle2 Max to %i", newValue);
-		acceleratorConfig->maximumLevel2 = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TRGNMAX") && acceleratorConfig) {
-		Logger::console("Setting Throttle Regen maximum to %i", newValue);
-		acceleratorConfig->positionRegenMaximum = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TRGNMIN") && acceleratorConfig) {
-		Logger::console("Setting Throttle Regen minimum to %i", newValue);
-		acceleratorConfig->positionRegenMinimum = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TFWD") && acceleratorConfig) {
-		Logger::console("Setting Throttle Forward Start to %i", newValue);
-		acceleratorConfig->positionForwardMotionStart = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TMAP") && acceleratorConfig) {
-		Logger::console("Setting Throttle MAP Point to %i", newValue);
-		acceleratorConfig->positionHalfPower = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TMINRN") && acceleratorConfig) {
-		Logger::console("Setting Throttle Regen Minimum Strength to %i", newValue);
-		acceleratorConfig->minimumRegen = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TMAXRN") && acceleratorConfig) {
-		Logger::console("Setting Throttle Regen Maximum Strength to %i", newValue);
-		acceleratorConfig->maximumRegen = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("TCREEP") && acceleratorConfig) {
-		Logger::console("Setting Throttle Creep Strength to %i", newValue);
-		acceleratorConfig->creep = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("BMAXR") && brakeConfig) {
-		Logger::console("Setting Max Brake Regen to %i", newValue);
-		brakeConfig->maximumRegen = newValue;
-		brake->saveConfiguration();
-	} else if (cmdString == String("BMINR") && brakeConfig) {
-		Logger::console("Setting Min Brake Regen to %i", newValue);
-		brakeConfig->minimumRegen = newValue;
-		brake->saveConfiguration();
+	else if (cmdString == String("CAN0FILTER1")) {
+		if (handleFilterSet(0, 1, newString)) writeEEPROM = true;
 	}
-	else if (cmdString == String("B1ADC") && acceleratorConfig) {
-		Logger::console("Setting Brake ADC pin to %i", newValue);
-		brakeConfig->AdcPin1 = newValue;
-		accelerator->saveConfiguration();
-	} else if (cmdString == String("B1MX") && brakeConfig) {
-		Logger::console("Setting Brake Max to %i", newValue);
-		brakeConfig->maximumLevel1 = newValue;
-		brake->saveConfiguration();
-	} else if (cmdString == String("B1MN") && brakeConfig) {
-		Logger::console("Setting Brake Min to %i", newValue);
-		brakeConfig->minimumLevel1 = newValue;
-		brake->saveConfiguration();
-	} else if (cmdString == String("PREC") && motorConfig) {
-		Logger::console("Setting Precharge Capacitance to %i", newValue);
-		motorConfig->kilowattHrs = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("PREDELAY") && motorConfig) {
-		Logger::console("Setting Precharge Time Delay to %i milliseconds", newValue);
-		motorConfig->prechargeR = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("NOMV") && motorConfig) {
-		Logger::console("Setting fully charged voltage to %d vdc", newValue);
-		motorConfig->nominalVolt = newValue * 10;
-		motorController->saveConfiguration();
-        } else if (cmdString == String("BRAKELT") && motorConfig) {
-		motorConfig->brakeLight = newValue;
-		motorController->saveConfiguration();
-		Logger::console("Brake light output set to DOUT%i.",newValue);
- } else if (cmdString == String("REVLT") && motorConfig) {
-		motorConfig->revLight = newValue;
-		motorController->saveConfiguration();
-		Logger::console("Reverse light output set to DOUT%i.",newValue);
- } else if (cmdString == String("ENABLEIN") && motorConfig) {
-		motorConfig->enableIn = newValue;
-		motorController->saveConfiguration();
-		Logger::console("Motor Enable input set to DIN%i.",newValue);
- } else if (cmdString == String("REVIN") && motorConfig) {
-		motorConfig->reverseIn = newValue;
-		motorController->saveConfiguration();
-		Logger::console("Motor Reverse input set to DIN%i.",newValue);
-	} else if (cmdString == String("MRELAY") && motorConfig) {
-		Logger::console("Setting Main Contactor relay output to DOUT%i", newValue);
-		motorConfig->mainContactorRelay = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("PRELAY") && motorConfig) {
-		Logger::console("Setting Precharge Relay output to DOUT%i", newValue);
-		motorConfig->prechargeRelay = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("ENABLE")) {
-		if (PrefHandler::setDeviceStatus(newValue, true)) {
-			sysPrefs->forceCacheWrite(); //just in case someone takes us literally and power cycles quickly
-			Logger::console("Successfully enabled device.(%X, %d) Power cycle to activate.", newValue, newValue);
-		}
-		else {
-			Logger::console("Invalid device ID (%X, %d)", newValue, newValue);
-		}
-	} else if (cmdString == String("DISABLE")) {
-		if (PrefHandler::setDeviceStatus(newValue, false)) {
-			sysPrefs->forceCacheWrite(); //just in case someone takes us literally and power cycles quickly
-			Logger::console("Successfully disabled device. Power cycle to deactivate.");
-		}
-		else {
-			Logger::console("Invalid device ID (%X, %d)", newValue, newValue);
-		}
-	} else if (cmdString == String("SYSTYPE")) {
-		if (newValue < 5 && newValue > 0) {
-			sysPrefs->write(EESYS_SYSTEM_TYPE, (uint8_t)(newValue));
-			sysPrefs->saveChecksum();
-			sysPrefs->forceCacheWrite(); //just in case someone takes us literally and power cycles quickly
+	else if (cmdString == String("CAN0FILTER2")) {
+		if (handleFilterSet(0, 2, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN0FILTER3")) {
+		if (handleFilterSet(0, 3, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN0FILTER4")) {
+		if (handleFilterSet(0, 4, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN0FILTER5")) {
+		if (handleFilterSet(0, 5, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN0FILTER6")) {
+		if (handleFilterSet(0, 6, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN0FILTER7")) {
+		if (handleFilterSet(0, 7, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER0")) {
+		if (handleFilterSet(1, 0, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER1")) {
+		if (handleFilterSet(1, 1, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER2")) {
+		if (handleFilterSet(1, 2, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER3")) {
+		if (handleFilterSet(1, 3, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER4")) {
+		if (handleFilterSet(1, 4, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER5")) {
+		if (handleFilterSet(1, 5, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER6")) {
+		if (handleFilterSet(1, 6, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN1FILTER7")) {
+		if (handleFilterSet(1, 7, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("BINSERIAL")) {
+		if (newValue < 0) newValue = 0;
+		if (newValue > 1) newValue = 1;
+		Logger::console("Setting Serial Binary Comm to %i", newValue);
+		settings.useBinarySerialComm = newValue;
+		writeEEPROM = true;
+	} else if (cmdString == String("BINFILE")) {
+		if (newValue < 0) newValue = 0;
+		if (newValue > 1) newValue = 1;
+		Logger::console("Setting File Binary Writing to %i", newValue);
+		settings.useBinaryFile = newValue;
+		writeEEPROM = true;
+	} else if (cmdString == String("FILEBASE")) {
+		Logger::console("Setting File Base Name to %s", newString);
+		strcpy((char *)settings.fileNameBase, newString);
+		writeEEPROM = true;
+	} else if (cmdString == String("FILEEXT")) {
+		Logger::console("Setting File Extension to %s", newString);
+		strcpy((char *)settings.fileNameExt, newString);
+		writeEEPROM = true;
+	} else if (cmdString == String("FILENUM")) {
+		Logger::console("Setting File Incrementing Number Base to %i", newValue);
+		settings.fileNum = newValue;
+		writeEEPROM = true;
+	} else if (cmdString == String("FILEAPPEND")) {
+		if (newValue < 0) newValue = 0;
+		if (newValue > 1) newValue = 1;
+		Logger::console("Setting File Append Mode to %i", newValue);
+		settings.appendFile = newValue;
+		writeEEPROM = true;
+	}
+	else if (cmdString == String("SYSTYPE")) {
+		if (newValue < 2 && newValue >= 0) {
+			settings.sysType = newValue;			
+			writeEEPROM = true;
 			Logger::console("System type updated. Power cycle to apply.");
 		}
-		else Logger::console("Invalid system type. Please enter a value 1 - 4");
-
-       
+		else Logger::console("Invalid system type. Please enter a value of 0 for CanDue or 1 for GEVCU");       
 	} else if (cmdString == String("LOGLEVEL")) {
 		switch (newValue) {
 		case 0:
 			Logger::setLoglevel(Logger::Debug);
 			Logger::console("setting loglevel to 'debug'");
+			writeEEPROM = true;
 			break;
 		case 1:
 			Logger::setLoglevel(Logger::Info);
 			Logger::console("setting loglevel to 'info'");
+			writeEEPROM = true;
 			break;
 		case 2:
 			Logger::console("setting loglevel to 'warning'");
 			Logger::setLoglevel(Logger::Warn);
+			writeEEPROM = true;
 			break;
 		case 3:
 			Logger::console("setting loglevel to 'error'");
 			Logger::setLoglevel(Logger::Error);
+			writeEEPROM = true;
 			break;
 		case 4:
 			Logger::console("setting loglevel to 'off'");
 			Logger::setLoglevel(Logger::Off);
+			writeEEPROM = true;
 			break;
 		}
-		sysPrefs->write(EESYS_LOG_LEVEL, (uint8_t)newValue);
-		sysPrefs->saveChecksum();
 
-	} else if (cmdString == String("WIREACH")) {
-		DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)(cmdBuffer + i));
-		Logger::info("sent \"AT+i%s\" to WiReach wireless LAN device", (cmdBuffer + i));
-                DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)"DOWN");	
-		updateWifi = false;
-	} else if (cmdString == String("SSID")) {
-		String cmdString = String();
-    	        cmdString.concat("WLSI");
-   		cmdString.concat('=');
-		cmdString.concat((char *)(cmdBuffer + i));
-                Logger::info("Sent \"%s\" to WiReach wireless LAN device", (cmdString.c_str()));
-       		DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)cmdString.c_str());
-                DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)"DOWN");	
-		updateWifi = false;
-        } else if (cmdString == String("IP")) {
-		String cmdString = String();
-    	        cmdString.concat("DIP");
-   		cmdString.concat('=');
-		cmdString.concat((char *)(cmdBuffer + i));
-                Logger::info("Sent \"%s\" to WiReach wireless LAN device", (cmdString.c_str()));
-       		DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)cmdString.c_str());
-                DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)"DOWN");	
-		updateWifi = false;
- } else if (cmdString == String("CHANNEL")) {
-		String cmdString = String();
-    	        cmdString.concat("WLCH");
-   		cmdString.concat('=');
-		cmdString.concat((char *)(cmdBuffer + i));
-                Logger::info("Sent \"%s\" to WiReach wireless LAN device", (cmdString.c_str()));
-       		DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)cmdString.c_str());
-                DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)"DOWN");	
-		updateWifi = false;
-	} else if (cmdString == String("SECURITY")) {
-		String cmdString = String();
-    	        cmdString.concat("WLPP");
-   		cmdString.concat('=');
-		cmdString.concat((char *)(cmdBuffer + i));
-                Logger::info("Sent \"%s\" to WiReach wireless LAN device", (cmdString.c_str()));
-       		DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)cmdString.c_str());
-                DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)"DOWN");	
-		updateWifi = false;
-	
-   } else if (cmdString == String("PWD")) {
-		String cmdString = String();
-    	        cmdString.concat("WPWD");
-   		cmdString.concat('=');
-		cmdString.concat((char *)(cmdBuffer + i));
-                Logger::info("Sent \"%s\" to WiReach wireless LAN device", (cmdString.c_str()));
-       		DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)cmdString.c_str());
-                DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_COMMAND, (void *)"DOWN");	
-		updateWifi = false;
-	
-	} else if (cmdString == String("COOLFAN") && motorConfig) {		
-		Logger::console("Cooling fan output updated to: %i", newValue);
-        motorConfig->coolFan = newValue;
-		motorController->saveConfiguration();
-	} else if (cmdString == String("COOLON")&& motorConfig) {
-		if (newValue <= 200 && newValue >= 0) {
-			Logger::console("Cooling fan ON temperature updated to: %i degrees", newValue);
-			motorConfig->coolOn = newValue;
-			motorController->saveConfiguration();
-		}
-		else Logger::console("Invalid cooling ON temperature. Please enter a value 0 - 200F");
-	} else if (cmdString == String("COOLOFF")&& motorConfig) {
-		if (newValue <= 200 && newValue >= 0) {
-			Logger::console("Cooling fan OFF temperature updated to: %i degrees", newValue);
-			motorConfig->coolOff = newValue;
-			motorController->saveConfiguration();
-	    }
-		else Logger::console("Invalid cooling OFF temperature. Please enter a value 0 - 200F");
-	} else if (cmdString == String("OUTPUT") && newValue<8) {
-                int outie = getOutput(newValue);
-                Logger::console("DOUT%d,  STATE: %d",newValue, outie);
-                if(outie)
-                  {
-                    setOutput(newValue,0);
-                    motorController->statusBitfield1 &= ~(1 << newValue);//Clear
-                  }
-                   else
-                     {
-                       setOutput(newValue,1);
-                        motorController->statusBitfield1 |=1 << newValue;//setbit to Turn on annunciator
-		      }
-                  
-             
-        Logger::console("DOUT0:%d, DOUT1:%d, DOUT2:%d, DOUT3:%d, DOUT4:%d, DOUT5:%d, DOUT6:%d, DOUT7:%d", getOutput(0), getOutput(1), getOutput(2), getOutput(3), getOutput(4), getOutput(5), getOutput(6), getOutput(7));
-	} else if (cmdString == String("NUKE")) {
-		if (newValue == 1) 
-		{   //write zero to the checksum location of every device in the table.
-			//Logger::console("Start of EEPROM Nuke");
-			uint8_t zeroVal = 0;
-			for (int j = 0; j < 64; j++) 
-			{
-				memCache->Write(EE_DEVICES_BASE + (EE_DEVICE_SIZE * j), zeroVal);
-				memCache->FlushAllPages();
-			}			
-			Logger::console("Device settings have been nuked. Reboot to reload default settings");
-		}
-	} else {
+	} 
+	else {
 		Logger::console("Unknown command");
-		updateWifi = false;
 	}
-	// send updates to ichip wifi
-	if (updateWifi)
-		DeviceManager::getInstance()->sendMessage(DEVICE_WIFI, ICHIP2128, MSG_CONFIG_CHANGE, NULL);
-		*/
+	if (writeEEPROM) 
+	{
+		EEPROM.write(EEPROM_PAGE, settings);
+	}
 }
 
 void SerialConsole::handleShortCmd() {
@@ -445,13 +315,6 @@ void SerialConsole::handleShortCmd() {
 	case 'H':
 		printMenu();
 		break;
-	case 'E':
-		Logger::console("Reading System EEPROM values");
-		for (int i = 0; i < 256; i++) {
-			//memCache->Read(EE_SYSTEM_START + i, &val);
-			//Logger::console("%d: %d", i, val);
-		}
-		break;
 	case 'K': //set all outputs high
 		for (int tout = 0; tout < NUM_OUTPUT; tout++) setOutput(tout, true);
 		Logger::console("all outputs: ON");
@@ -460,8 +323,56 @@ void SerialConsole::handleShortCmd() {
 		for (int tout = 0; tout < NUM_OUTPUT; tout++) setOutput(tout, false);
 		Logger::console("all outputs: OFF");
 		break;        
+	case 'R': //reset to factory defaults.
+		break;
+	case 's': //start logging canbus to file
+		break;
+	case 'S': //stop logging canbus to file
+		break;
 	case 'X':
 		setup(); //this is probably a bad idea. Do not do this while connected to anything you care about - only for debugging in safety!
 		break;
 	}
+}
+
+//CAN0FILTER%i=%%i,%%i,%%i,%%i (ID, Mask, Extended, Enabled)", i);
+bool SerialConsole::handleFilterSet(uint8_t bus, uint8_t filter, char *values) 
+{
+	if (filter < 0 || filter > 7) return false;
+	if (bus < 0 || bus > 1) return false;
+
+	//there should be four tokens
+	char *idTok = strtok(values, ",");
+	char *maskTok = strtok(NULL, ",");
+	char *extTok = strtok(NULL, ",");
+	char *enTok = strtok(NULL, ",");
+
+	if (!idTok) return false; //if any of them were null then something was wrong. Abort.
+	if (!maskTok) return false;
+	if (!extTok) return false;
+	if (!enTok) return false;
+
+	int idVal = strtol(idTok, NULL, 0);
+	int maskVal = strtol(maskTok, NULL, 0);
+	int extVal = strtol(extTok, NULL, 0);
+	int enVal = strtol(enTok, NULL, 0);
+
+	Logger::console("Setting CAN%iFILTER%i to ID 0x%x Mask 0x%x Extended %i Enabled %i", bus, filter, idVal, maskVal, extVal, enVal);
+
+	if (bus == 0)
+	{
+		settings.CAN0Filters[filter].id = idVal;
+		settings.CAN0Filters[filter].mask = maskVal;
+		settings.CAN0Filters[filter].extended = extVal;
+		settings.CAN0Filters[filter].enabled = enVal;
+	}
+	else if (bus == 1) 
+	{
+		settings.CAN1Filters[filter].id = idVal;
+		settings.CAN1Filters[filter].mask = maskVal;
+		settings.CAN1Filters[filter].extended = extVal;
+		settings.CAN1Filters[filter].enabled = enVal;
+	}
+
+	return true;
 }

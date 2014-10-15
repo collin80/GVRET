@@ -34,6 +34,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <SdFatUtil.h>
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
+#include "SerialConsole.h"
 
 /*
 Notes on project:
@@ -55,15 +56,19 @@ SdFat sd;
  
 SdFile file; //allow to open a file
 
+SerialConsole console;
+
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
 void loadSettings()
 {
 	EEPROM.read(EEPROM_PAGE, settings);
 
-	if (settings.version != 0x10) //if settings are not the current version then erase them and set defaults
+	if (settings.version != 0x11) //if settings are not the current version then erase them and set defaults
 	{
-		settings.appendFile = true;
+		Logger::console("Resetting to factory defaults");
+		settings.version = 0x11;
+		settings.appendFile = false;
 		settings.CAN0Speed = 250000;
 		settings.CAN0_Enabled = false;
 		settings.CAN1Speed = 250000;
@@ -82,7 +87,7 @@ void loadSettings()
 			settings.CAN1Filters[i].id = 0;
 			settings.CAN1Filters[i].mask = 0;
 		}
-		for (int j = 3; i < 7; i++)
+		for (int j = 3; i < 8; i++)
 		{
 			settings.CAN0Filters[i].enabled = true;
 			settings.CAN0Filters[i].extended = false;
@@ -100,10 +105,14 @@ void loadSettings()
 		settings.valid = 0; //not used right now
 		EEPROM.write(EEPROM_PAGE, settings);
 	}
+	else {
+		Logger::console("Using stored values from EEPROM");
+	}
 
 	Logger::setLoglevel((Logger::LogLevel)settings.logLevel);
 
 	if (settings.sysType == 1) { //GEVCU
+		Logger::console("Running on GEVCU hardware");
 		SysSettings.eepromWPPin = GEVCU_EEPROM_WP_PIN;
 		SysSettings.CAN0EnablePin = GEVCU_CAN0_EN_PIN;
 		SysSettings.CAN1EnablePin = GEVCU_CAN1_EN_PIN;
@@ -112,6 +121,7 @@ void loadSettings()
 	}
 	else //CANDUE
 	{
+		Logger::console("Running on CANDue hardware");
 		SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
 		SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
 		SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
@@ -122,7 +132,7 @@ void loadSettings()
 
 void setup()
 {
-	//delay(7000);
+	delay(4000); //just for testing. Don't use in production
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
@@ -297,7 +307,11 @@ void loop()
 	   switch (state) {
 	   case IDLE:
 		   if (in_byte == 0xF1) state = GET_COMMAND;
-		   if (in_byte == 0xE7) settings.useBinarySerialComm = true;
+		   else if (in_byte == 0xE7) settings.useBinarySerialComm = true;
+		   else 
+		   {
+			   console.rcvCharacter((uint8_t)in_byte);
+		   }
 		   break;
 	   case GET_COMMAND:
 		   switch (in_byte) {
