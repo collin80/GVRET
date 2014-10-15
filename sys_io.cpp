@@ -59,7 +59,7 @@ void sys_early_setup() {
 
 	NumADCSamples = 64;
 
-	Logger::info("Running on GEVCU 4.x hardware");
+	//Logger::info("Running on GEVCU 4.x hardware");
 	dig[0]=48; dig[1]=49; dig[2]=50; dig[3]=51;
 	adc[0][0] = 3; adc[0][1] = 255;
 	adc[1][0] = 2; adc[1][1] = 255;

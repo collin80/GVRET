@@ -38,8 +38,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 struct FILTER {  //should be 10 bytes
 	uint32_t id;
 	uint32_t mask;
-	bool extended;
-	bool enabled;
+	uint8_t extended;
+	uint8_t enabled;
 };
 
 struct EEPROMSettings { //222 bytes right now. Must stay under 256
@@ -47,18 +47,18 @@ struct EEPROMSettings { //222 bytes right now. Must stay under 256
 	
 	uint32_t CAN0Speed;
 	uint32_t CAN1Speed;
-	bool CAN0_Enabled;
-	bool CAN1_Enabled;
+	uint8_t CAN0_Enabled;
+	uint8_t CAN1_Enabled;
 	FILTER CAN0Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
 	FILTER CAN1Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
 
-	bool useBinarySerialComm; //use a binary protocol on the serial link or human readable format?
-	bool useBinaryFile; //store data in file in binary or text? Binary is more compact and thus faster/more efficient
+	uint8_t useBinarySerialComm; //use a binary protocol on the serial link or human readable format?
+	uint8_t useBinaryFile; //store data in file in binary or text? Binary is more compact and thus faster/more efficient
 
-	char fileNameBase[40]; //Base filename to use
+	char fileNameBase[30]; //Base filename to use
 	char fileNameExt[4]; //extension to use
 	uint16_t fileNum; //incrementing value to append to filename if we create a new file each time
-	bool appendFile; //start a new file every power up or append to current?
+	uint8_t appendFile; //start a new file every power up or append to current?
 
 	uint8_t logLevel; //Level of logging to output on serial line
 	uint8_t sysType; //0 = CANDUE, 1 = GEVCU
@@ -83,6 +83,7 @@ extern SystemSettings SysSettings;
 #define CFG_BUILD_NUM	301
 #define CFG_VERSION "GVRET alpha 2014-10-14"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
+#define EEPROM_VER		0x14
 
 #define CANDUE_EEPROM_WP_PIN	18
 #define CANDUE_CAN0_EN_PIN		50

@@ -29,6 +29,7 @@
 #include "SerialConsole.h"
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
+#include <due_can.h>
 
 SerialConsole::SerialConsole() {
 	init();
@@ -60,7 +61,7 @@ void SerialConsole::printMenu() {
 	SerialUSB.println("Config Commands (enter command=newvalue). Current values shown in parenthesis:");
     SerialUSB.println();
 
-    Logger::console("LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", Logger::getLogLevel());
+    Logger::console("LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", settings.logLevel);
 	Logger::console("SYSTYPE=%i - set board type (0=CANDue, 1=GEVCU)", settings.sysType);
 	SerialUSB.println();
 
@@ -158,11 +159,15 @@ void SerialConsole::handleConfigCmd() {
 		if (newValue > 1) newValue = 1;
 		Logger::console("Setting CAN0 Enabled to %i", newValue);
 		settings.CAN0_Enabled = newValue;
+		if (newValue == 1) Can0.begin(settings.CAN0Speed, SysSettings.CAN0EnablePin);
+		else Can0.disable();
 		writeEEPROM = true;
 	} else if (cmdString == String("CAN1EN")) {
 		if (newValue < 0) newValue = 0;
 		if (newValue > 1) newValue = 1;
 		Logger::console("Setting CAN1 Enabled to %i", newValue);
+		if (newValue == 1) Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
+		else Can1.disable();
 		settings.CAN1_Enabled = newValue;
 		writeEEPROM = true;
 	} else if (cmdString == String("CAN0SPEED")) {
@@ -170,6 +175,7 @@ void SerialConsole::handleConfigCmd() {
 		{
 			Logger::console("Setting CAN0 Baud Rate to %i", newValue);
 			settings.CAN0Speed = newValue;
+			Can0.begin(settings.CAN0Speed, SysSettings.CAN0EnablePin);
 			writeEEPROM = true;
 		}
 		else Logger::console("Invalid baud rate! Enter a value 1 - 1000000");
@@ -178,6 +184,7 @@ void SerialConsole::handleConfigCmd() {
 		{
 			Logger::console("Setting CAN1 Baud Rate to %i", newValue);
 			settings.CAN1Speed = newValue;
+			Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
 			writeEEPROM = true;
 		}
 		else Logger::console("Invalid baud rate! Enter a value 1 - 1000000");
@@ -365,6 +372,7 @@ bool SerialConsole::handleFilterSet(uint8_t bus, uint8_t filter, char *values)
 		settings.CAN0Filters[filter].mask = maskVal;
 		settings.CAN0Filters[filter].extended = extVal;
 		settings.CAN0Filters[filter].enabled = enVal;
+		Can0.setRXFilter(filter, idVal, maskVal, extVal);
 	}
 	else if (bus == 1) 
 	{
@@ -372,6 +380,7 @@ bool SerialConsole::handleFilterSet(uint8_t bus, uint8_t filter, char *values)
 		settings.CAN1Filters[filter].mask = maskVal;
 		settings.CAN1Filters[filter].extended = extVal;
 		settings.CAN1Filters[filter].enabled = enVal;
+		Can1.setRXFilter(filter, idVal, maskVal, extVal);
 	}
 
 	return true;

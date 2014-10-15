@@ -64,10 +64,10 @@ void loadSettings()
 {
 	EEPROM.read(EEPROM_PAGE, settings);
 
-	if (settings.version != 0x11) //if settings are not the current version then erase them and set defaults
+	if (settings.version != EEPROM_VER) //if settings are not the current version then erase them and set defaults
 	{
 		Logger::console("Resetting to factory defaults");
-		settings.version = 0x11;
+		settings.version = EEPROM_VER;
 		settings.appendFile = false;
 		settings.CAN0Speed = 250000;
 		settings.CAN0_Enabled = false;
@@ -132,7 +132,7 @@ void loadSettings()
 
 void setup()
 {
-	delay(4000); //just for testing. Don't use in production
+	delay(5000); //just for testing. Don't use in production
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
