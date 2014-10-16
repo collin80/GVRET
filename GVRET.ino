@@ -47,14 +47,11 @@ byte i = 0;
 
 bool binaryComm = true;
 
-uint8_t buf[BUF_SIZE];
 EEPROMSettings settings;
 SystemSettings SysSettings;
 
 // file system on sdcard
 SdFat sd;
- 
-SdFile file; //allow to open a file
 
 SerialConsole console;
 
@@ -111,6 +108,8 @@ void loadSettings()
 
 	Logger::setLoglevel((Logger::LogLevel)settings.logLevel);
 
+	SysSettings.SDCardInserted = false;
+
 	if (settings.sysType == 1) { //GEVCU
 		Logger::console("Running on GEVCU hardware");
 		SysSettings.eepromWPPin = GEVCU_EEPROM_WP_PIN;
@@ -144,7 +143,11 @@ void setup()
 	EEPROM.setWPPin(SysSettings.eepromWPPin);
 
     if (SysSettings.useSD) {	
-		if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) sd.initErrorHalt(); //init at 42MHz
+		if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) 
+		{
+			Logger::error("Could not initialize SDCard! No file logging will be possible!");
+		}
+		else SysSettings.SDCardInserted = true;
 	}
 
     SerialUSB.print("Build number: ");
@@ -276,7 +279,7 @@ void loop()
 	if (getDigital(0)) {
 		if (!markToggle) {
 			markToggle = true;
-			if (!binaryComm) SerialUSB.println("MARK TRIGGERED");
+			if (!settings.useBinarySerialComm) SerialUSB.println("MARK TRIGGERED");
 			else 
 			{ //figure out some sort of binary comm for the mark.
 			}

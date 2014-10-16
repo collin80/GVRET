@@ -25,9 +25,16 @@
  */
 
 #include "Logger.h"
+#include "config.h"
+#include <due_wire.h>
+#include <Wire_EEPROM.h>
+#include <SDFat.h>
+#include <SdFatUtil.h>
+
 
 Logger::LogLevel Logger::logLevel = Logger::Info;
 uint32_t Logger::lastLogTime = 0;
+uint16_t Logger::fileBuffWritePtr = 0;
 
 /*
  * Output a debug message with a variable amount of parameters.
@@ -104,6 +111,147 @@ void Logger::console(char *message, ...)
     va_start(args, message);
     Logger::logMessage(message, args);
     va_end(args);
+}
+
+void Logger::buffPutChar(char c)
+{
+	*(filebuffer + fileBuffWritePtr++) = c;
+}
+
+void Logger::buffPutString(char *c)
+{
+	while (*c) *(filebuffer + fileBuffWritePtr++) = *c++;
+}
+
+void Logger::file(char *message, ...) 
+{
+	if (!SysSettings.SDCardInserted) return; // not possible to log without card
+
+	char buff[20];
+
+	va_list args;
+	va_start(args, message);	
+
+	if (!fileRef.isOpen())  //file not open. Try to open it.
+	{
+		String filename;
+		if (settings.appendFile == 1) 
+		{
+			filename = String(settings.fileNameBase);
+			filename.concat(".");
+			filename.concat(settings.fileNameExt);
+			fileRef.open(filename.c_str(), O_APPEND | O_WRITE);
+		}
+		else {
+			filename = String(settings.fileNameBase);
+			filename.concat(settings.fileNum++);
+			filename.concat(".");
+			filename.concat(settings.fileNameExt);
+			EEPROM.write(EEPROM_PAGE, settings); //save settings to save updated filenum
+			fileRef.open(filename.c_str(), O_CREAT | O_TRUNC | O_WRITE);
+		}		
+		if (!fileRef.isOpen())
+		{
+			Logger::error("open failed");
+			return;
+		}
+	}
+
+	//Before we add the next frame see if the buffer is nearly full. if so flush it first.
+	if (fileBuffWritePtr > BUF_SIZE - 40)
+	{
+		if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
+			Logger::error("Write to SDCard failed!");
+			SysSettings.useSD = false; //borked so stop trying.
+		}
+		fileBuffWritePtr = 0; 
+	}
+	
+	for (; *message != 0; ++message) {
+		if (*message == '%') {
+			++message;
+
+			if (*message == '\0') {
+				break;
+			}
+
+			if (*message == '%') {
+				buffPutChar(*message);
+				continue;
+			}
+
+			if (*message == 's') {
+				register char *s = (char *)va_arg(args, int);
+				buffPutString(s);
+				continue;
+			}
+
+			if (*message == 'd' || *message == 'i') {
+				sprintf(buff, "%i", va_arg(args, int));
+				buffPutString(buff);
+				continue;
+			}
+
+			if (*message == 'f') {
+				sprintf(buff, "%f0.2", va_arg(args, double));
+				buffPutString(buff);
+				continue;
+			}
+
+			if (*message == 'x') {
+				sprintf(buff, "%x", va_arg(args, int));
+				buffPutString(buff);				
+				continue;
+			}
+
+			if (*message == 'X') {
+				buffPutString("0x");
+				sprintf(buff, "%x", va_arg(args, int));
+				buffPutString(buff);
+				continue;
+			}
+
+			if (*message == 'l') {
+				sprintf(buff, "%l", va_arg(args, long));
+				buffPutString(buff);
+				continue;
+			}
+
+			if (*message == 'c') {
+				buffPutChar(va_arg(args, int));
+				continue;
+			}
+
+			if (*message == 't') {
+				if (va_arg(args, int) == 1) {
+					buffPutString("T");
+				}
+				else {
+					buffPutString("F");
+				}
+
+				continue;
+			}
+
+			if (*message == 'T') {
+				if (va_arg(args, int) == 1) {
+					buffPutString("TRUE");
+				}
+				else {
+					buffPutString("FALSE");
+				}
+				continue;
+			}
+
+		}
+
+		buffPutChar(*message);
+	}
+
+	buffPutString("\r\n");
+
+	va_end(args);
+
 }
 
 /*

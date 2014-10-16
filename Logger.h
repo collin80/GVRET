@@ -28,6 +28,10 @@
 #define LOGGER_H_
 
 #include <Arduino.h>
+#include <SDFat.h>
+#include <SdFatUtil.h>
+#include "config.h"
+
 
 class Logger
 {
@@ -40,6 +44,7 @@ public:
     static void warn(char *, ...);
     static void error(char *, ...);
     static void console(char *, ...);
+	static void file(char *, ...);
     static void setLoglevel(LogLevel);
     static LogLevel getLogLevel();
     static uint32_t getLastLogTime();
@@ -48,8 +53,14 @@ private:
     static LogLevel logLevel;
     static uint32_t lastLogTime;
 
+	static SdFile fileRef; //file we're logging to
+	static uint8_t filebuffer[BUF_SIZE]; //size of buffer for file output
+	static uint16_t fileBuffWritePtr;
+
     static void log(LogLevel, char *format, va_list);
     static void logMessage(char *format, va_list args);
+	static void buffPutChar(char c);
+	static void buffPutString(char *c);
 };
 
 #endif /* LOGGER_H_ */

@@ -30,6 +30,7 @@
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 #include <due_can.h>
+#include "config.h"
 
 SerialConsole::SerialConsole() {
 	init();
@@ -81,6 +82,9 @@ void SerialConsole::printMenu() {
 		Logger::console(buff, settings.CAN1Filters[i].id, settings.CAN1Filters[i].mask,
 			settings.CAN1Filters[i].extended, settings.CAN1Filters[i].enabled);
 	}
+	Logger::console("C0SEND=ID,LEN,<BYTES SEPARATED BY SPACES> - Ex: C0SEND=0x200,4,1 2 3 4");
+	Logger::console("C1SEND=ID,LEN,<BYTES SEPARATED BY SPACES> - Ex: C1SEND=0x200,8,00 00 00 10 0xAA 0xBB 0xA0 00");
+	Logger::console("MARK=<Description of what you are doing> - Set a mark in the log file about what you are about to do.");
 	SerialUSB.println();
 
 	Logger::console("BINSERIAL=%i - Enable/Disable Binary Sending of CANBus Frames to Serial (0=Dis, 1=En)", settings.useBinarySerialComm);
@@ -235,6 +239,15 @@ void SerialConsole::handleConfigCmd() {
 	}
 	else if (cmdString == String("CAN1FILTER7")) {
 		if (handleFilterSet(1, 7, newString)) writeEEPROM = true;
+	}
+	else if (cmdString == String("CAN0SEND")) {
+
+	}
+	else if (cmdString == String("CAN1SEND")) {
+
+	}
+	else if (cmdString == String("MARK")) {
+
 	}
 	else if (cmdString == String("BINSERIAL")) {
 		if (newValue < 0) newValue = 0;

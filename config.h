@@ -73,6 +73,7 @@ struct SystemSettings
 	uint8_t CAN1EnablePin;
 	boolean useSD;
 	uint8_t SDCardSelPin;
+	boolean SDCardInserted;
 };
 
 extern EEPROMSettings settings;
