@@ -45,10 +45,12 @@ public:
     static void error(char *, ...);
     static void console(char *, ...);
 	static void file(char *, ...);
+	static void fileRaw(uint8_t*, int);
     static void setLoglevel(LogLevel);
     static LogLevel getLogLevel();
     static uint32_t getLastLogTime();
     static boolean isDebug();
+	static void loop();
 private:
     static LogLevel logLevel;
     static uint32_t lastLogTime;
@@ -56,11 +58,13 @@ private:
 	static SdFile fileRef; //file we're logging to
 	static uint8_t filebuffer[BUF_SIZE]; //size of buffer for file output
 	static uint16_t fileBuffWritePtr;
+	static uint32_t lastWriteTime;
 
     static void log(LogLevel, char *format, va_list);
     static void logMessage(char *format, va_list args);
 	static void buffPutChar(char c);
 	static void buffPutString(char *c);
+	static boolean setupFile();
 };
 
 #endif /* LOGGER_H_ */

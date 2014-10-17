@@ -95,6 +95,7 @@ void SerialConsole::printMenu() {
 	Logger::console("FILEEXT=%s - Set filename ext for saving", (char *)settings.fileNameExt);
 	Logger::console("FILENUM=%i - Set incrementing number for filename", settings.fileNum);
 	Logger::console("FILEAPPEND=%i - Append to file (no numbers) or use incrementing numbers after basename (0=Incrementing Numbers, 1=Append)", settings.appendFile);
+	Logger::console("FILEAUTO=%i - Automatically start logging at startup (0=No, 1 = Yes)", settings.autoStartLogging);
 }
 
 /*	There is a help menu (press H or h or ?)
@@ -278,6 +279,13 @@ void SerialConsole::handleConfigCmd() {
 		if (newValue > 1) newValue = 1;
 		Logger::console("Setting File Append Mode to %i", newValue);
 		settings.appendFile = newValue;
+		writeEEPROM = true;
+	}
+	else if (cmdString == String("FILEAUTO")) {
+		if (newValue < 0) newValue = 0;
+		if (newValue > 1) newValue = 1;
+		Logger::console("Setting Auto File Logging Mode to %i", newValue);
+		settings.autoStartLogging = newValue;
 		writeEEPROM = true;
 	}
 	else if (cmdString == String("SYSTYPE")) {

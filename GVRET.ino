@@ -41,11 +41,11 @@ Notes on project:
 This code should be autonomous after being set up. That is, you should be able to set it up
 then disconnect it and move over to a car or other device to monitor, plug it in, and have everything
 use the settings you set up without any external input.
+
+need to log to file if asked.
 */
 
 byte i = 0;
-
-bool binaryComm = true;
 
 EEPROMSettings settings;
 SystemSettings SysSettings;
@@ -97,6 +97,7 @@ void loadSettings()
 		}
 		settings.useBinaryFile = false;
 		settings.useBinarySerialComm = false;
+		settings.autoStartLogging = false;
 		settings.logLevel = 1; //info
 		settings.sysType = 0; //CANDUE as default
 		settings.valid = 0; //not used right now
@@ -148,6 +149,7 @@ void setup()
 			Logger::error("Could not initialize SDCard! No file logging will be possible!");
 		}
 		else SysSettings.SDCardInserted = true;
+		if (settings.autoStartLogging) SysSettings.logToFile = true;
 	}
 
     SerialUSB.print("Build number: ");
@@ -248,6 +250,39 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 	}
 }
 
+void sendFrameToFile(CAN_FRAME &frame, int whichBus)
+{
+	uint8_t buff[18];
+	uint8_t temp;
+	if (settings.useBinaryFile) {
+		if (frame.extended) frame.id |= 1 << 31;
+		buff[0] = (uint8_t)(frame.id & 0xFF);
+		buff[1] = (uint8_t)(frame.id >> 8);
+		buff[2] = (uint8_t)(frame.id >> 16);
+		buff[3] = (uint8_t)(frame.id >> 24);
+		buff[4] = frame.length + (uint8_t)(whichBus << 4);
+		for (int c = 0; c < frame.length; c++)
+		{
+			buff[5 + c] = frame.data.bytes[c];
+		}
+		Logger::fileRaw(buff, 5 + frame.length);
+	}
+	else
+	{
+		sprintf((char *)buff, "%x,%i,%i,%i", frame.id, frame.extended, whichBus, frame.length);
+		Logger::fileRaw(buff, strlen((char *)buff));
+
+		for (int c = 0; c < frame.length; c++)
+		{
+			sprintf((char *) buff, ",%x", frame.data.bytes[c]);
+			Logger::fileRaw(buff, strlen((char *)buff));
+		}
+		buff[0] = '\r';
+		buff[1] = '\n';
+		Logger::fileRaw(buff, 2);
+	}
+}
+
 /*
 Loop executes as often as possible all the while interrupts fire in the background.
 The serial comm protocol is as follows:
@@ -297,11 +332,13 @@ void loop()
   if (Can0.available() > 0) {
 	Can0.read(incoming);
 	sendFrameToUSB(incoming, 0);
+	if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
   }
 
   if (Can1.available()) {
 	Can1.read(incoming); 
 	sendFrameToUSB(incoming, 1);
+	if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
   }
 
   if (SerialUSB.available()) {
@@ -477,6 +514,7 @@ void loop()
 	   }
 	}
   }
+  Logger::loop();
    //this should still be here. It checks for a flag set during an interrupt
    sys_io_adc_poll();
 }

@@ -35,6 +35,9 @@
 Logger::LogLevel Logger::logLevel = Logger::Info;
 uint32_t Logger::lastLogTime = 0;
 uint16_t Logger::fileBuffWritePtr = 0;
+SdFile Logger::fileRef; //file we're logging to
+uint8_t Logger::filebuffer[BUF_SIZE]; //size of buffer for file output
+uint32_t Logger::lastWriteTime = 0;
 
 /*
  * Output a debug message with a variable amount of parameters.
@@ -123,19 +126,12 @@ void Logger::buffPutString(char *c)
 	while (*c) *(filebuffer + fileBuffWritePtr++) = *c++;
 }
 
-void Logger::file(char *message, ...) 
+boolean Logger::setupFile()
 {
-	if (!SysSettings.SDCardInserted) return; // not possible to log without card
-
-	char buff[20];
-
-	va_list args;
-	va_start(args, message);	
-
 	if (!fileRef.isOpen())  //file not open. Try to open it.
 	{
 		String filename;
-		if (settings.appendFile == 1) 
+		if (settings.appendFile == 1)
 		{
 			filename = String(settings.fileNameBase);
 			filename.concat(".");
@@ -149,23 +145,60 @@ void Logger::file(char *message, ...)
 			filename.concat(settings.fileNameExt);
 			EEPROM.write(EEPROM_PAGE, settings); //save settings to save updated filenum
 			fileRef.open(filename.c_str(), O_CREAT | O_TRUNC | O_WRITE);
-		}		
+		}
 		if (!fileRef.isOpen())
 		{
 			Logger::error("open failed");
-			return;
+			return false;
 		}
 	}
 
 	//Before we add the next frame see if the buffer is nearly full. if so flush it first.
 	if (fileBuffWritePtr > BUF_SIZE - 40)
 	{
+		Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
+		lastWriteTime = millis();
 		if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
 			Logger::error("Write to SDCard failed!");
 			SysSettings.useSD = false; //borked so stop trying.
+			fileBuffWritePtr = 0;
+			return false;
 		}
-		fileBuffWritePtr = 0; 
+		fileRef.sync(); //needed in order to update the file if you aren't closing it ever
+		fileBuffWritePtr = 0;
 	}
+	return true;
+}
+
+void Logger::loop()
+{
+	if (fileBuffWritePtr > 0) {
+		if (millis() > (lastWriteTime + 1000)) //if it's been at least 1second since the last write and we have data to write
+		{
+			Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
+			lastWriteTime = millis();
+			if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
+				Logger::error("Write to SDCard failed!");
+				SysSettings.useSD = false; //borked so stop trying.
+				fileBuffWritePtr = 0;
+				return;
+			}
+			fileRef.sync();
+			fileBuffWritePtr = 0;
+		}
+	}
+}
+
+void Logger::file(char *message, ...) 
+{
+	if (!SysSettings.SDCardInserted) return; // not possible to log without card
+
+	char buff[20];
+
+	va_list args;
+	va_start(args, message);	
+
+	if (!setupFile()) return;
 	
 	for (; *message != 0; ++message) {
 		if (*message == '%') {
@@ -252,6 +285,17 @@ void Logger::file(char *message, ...)
 
 	va_end(args);
 
+}
+
+void Logger::fileRaw(uint8_t* buff, int sz) 
+{
+	if (!SysSettings.SDCardInserted) return; // not possible to log without card
+
+	if (!setupFile()) return;
+
+	for (int i; i < sz; i++) {
+		buffPutChar(*buff++);
+	}
 }
 
 /*
