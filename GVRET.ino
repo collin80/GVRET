@@ -41,8 +41,6 @@ Notes on project:
 This code should be autonomous after being set up. That is, you should be able to set it up
 then disconnect it and move over to a car or other device to monitor, plug it in, and have everything
 use the settings you set up without any external input.
-
-need to log to file if asked.
 */
 
 byte i = 0;
@@ -235,6 +233,8 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 	}
 	else 
 	{
+		SerialUSB.print(millis());
+		SerialUSB.print(" - ");
 		SerialUSB.print(frame.id, HEX);
 		if (frame.extended) SerialUSB.print(" X ");
 		else SerialUSB.print(" S ");
@@ -254,22 +254,28 @@ void sendFrameToFile(CAN_FRAME &frame, int whichBus)
 {
 	uint8_t buff[18];
 	uint8_t temp;
+	uint32_t timestamp;
 	if (settings.useBinaryFile) {
 		if (frame.extended) frame.id |= 1 << 31;
-		buff[0] = (uint8_t)(frame.id & 0xFF);
-		buff[1] = (uint8_t)(frame.id >> 8);
-		buff[2] = (uint8_t)(frame.id >> 16);
-		buff[3] = (uint8_t)(frame.id >> 24);
-		buff[4] = frame.length + (uint8_t)(whichBus << 4);
+		timestamp = millis();
+		buff[0] = (uint8_t)(timestamp & 0xFF);
+		buff[1] = (uint8_t)(timestamp >> 8);
+		buff[2] = (uint8_t)(timestamp >> 16);
+		buff[3] = (uint8_t)(timestamp >> 24);
+		buff[4] = (uint8_t)(frame.id & 0xFF);
+		buff[5] = (uint8_t)(frame.id >> 8);
+		buff[6] = (uint8_t)(frame.id >> 16);
+		buff[7] = (uint8_t)(frame.id >> 24);
+		buff[8] = frame.length + (uint8_t)(whichBus << 4);
 		for (int c = 0; c < frame.length; c++)
 		{
-			buff[5 + c] = frame.data.bytes[c];
+			buff[9 + c] = frame.data.bytes[c];
 		}
-		Logger::fileRaw(buff, 5 + frame.length);
+		Logger::fileRaw(buff, 9 + frame.length);
 	}
 	else
 	{
-		sprintf((char *)buff, "%x,%i,%i,%i", frame.id, frame.extended, whichBus, frame.length);
+		sprintf((char *)buff, "%i,%x,%i,%i,%i", millis(), frame.id, frame.extended, whichBus, frame.length);
 		Logger::fileRaw(buff, strlen((char *)buff));
 
 		for (int c = 0; c < frame.length; c++)
