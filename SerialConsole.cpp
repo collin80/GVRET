@@ -82,8 +82,8 @@ void SerialConsole::printMenu() {
 		Logger::console(buff, settings.CAN1Filters[i].id, settings.CAN1Filters[i].mask,
 			settings.CAN1Filters[i].extended, settings.CAN1Filters[i].enabled);
 	}
-	Logger::console("C0SEND=ID,LEN,<BYTES SEPARATED BY SPACES> - Ex: C0SEND=0x200,4,1 2 3 4");
-	Logger::console("C1SEND=ID,LEN,<BYTES SEPARATED BY SPACES> - Ex: C1SEND=0x200,8,00 00 00 10 0xAA 0xBB 0xA0 00");
+	Logger::console("CAN0SEND=ID,LEN,<BYTES SEPARATED BY COMMAS> - Ex: C0SEND=0x200,4,1,2,3,4");
+	Logger::console("CAN1SEND=ID,LEN,<BYTES SEPARATED BY COMMAS> - Ex: C1SEND=0x200,8,00,00,00,10,0xAA,0xBB,0xA0,00");
 	Logger::console("MARK=<Description of what you are doing> - Set a mark in the log file about what you are about to do.");
 	SerialUSB.println();
 
@@ -242,12 +242,14 @@ void SerialConsole::handleConfigCmd() {
 		if (handleFilterSet(1, 7, newString)) writeEEPROM = true;
 	}
 	else if (cmdString == String("CAN0SEND")) {
-
+		handleCANSend(Can0, newString);
 	}
 	else if (cmdString == String("CAN1SEND")) {
-
+		handleCANSend(Can1, newString);
 	}
-	else if (cmdString == String("MARK")) {
+	else if (cmdString == String("MARK")) { //just ascii based for now
+		if (!settings.useBinaryFile) Logger::file("Mark: %s", newString);
+		if (!settings.useBinarySerialComm) Logger::console("Mark: %s", newString);
 
 	}
 	else if (cmdString == String("BINSERIAL")) {
@@ -404,5 +406,34 @@ bool SerialConsole::handleFilterSet(uint8_t bus, uint8_t filter, char *values)
 		Can1.setRXFilter(filter, idVal, maskVal, extVal);
 	}
 
+	return true;
+}
+
+bool SerialConsole::handleCANSend(CANRaw &port, char *inputString)
+{
+	char *idTok = strtok(inputString, ",");
+	char *lenTok = strtok(NULL, ",");
+	char *dataTok;
+	CAN_FRAME frame;
+
+	if (!idTok) return false;
+	if (!lenTok) return false;
+
+	int idVal = strtol(idTok, NULL, 0);
+	int lenVal = strtol(lenTok, NULL, 0);
+
+	for (int i = 0; i < lenVal; i++)
+	{
+		dataTok = strtok(NULL, ",");
+		if (!dataTok) return false;
+		frame.data.byte[i] = strtol(dataTok, NULL, 0);
+	}
+
+	//things seem good so try to send the frame.
+	frame.id = idVal;
+	if (idVal >= 0x7FF) frame.extended = true;
+	else frame.extended = false;
+	frame.length = lenVal;
+	port.sendFrame(frame);
 	return true;
 }
