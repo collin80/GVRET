@@ -354,10 +354,15 @@ void SerialConsole::handleShortCmd() {
 		Logger::console("all outputs: OFF");
 		break;        
 	case 'R': //reset to factory defaults.
+		settings.version = 0xFF;
+		EEPROM.write(EEPROM_PAGE, settings);
+		Logger::console("Power cycle to reset to factory defaults");
 		break;
 	case 's': //start logging canbus to file
+		SysSettings.logToFile = true;
 		break;
 	case 'S': //stop logging canbus to file
+		SysSettings.logToFile = false;
 		break;
 	case 'X':
 		setup(); //this is probably a bad idea. Do not do this while connected to anything you care about - only for debugging in safety!
