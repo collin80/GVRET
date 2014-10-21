@@ -76,6 +76,9 @@ struct SystemSettings
 	boolean logToFile; //are we currently supposed to be logging to file?
 	uint8_t SDCardSelPin;
 	boolean SDCardInserted;
+	uint8_t LED_CANTX;
+	uint8_t LED_CANRX;
+	uint8_t LED_LOGGING;
 };
 
 extern EEPROMSettings settings;

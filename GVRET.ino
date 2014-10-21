@@ -116,6 +116,10 @@ void loadSettings()
 		SysSettings.CAN1EnablePin = GEVCU_CAN1_EN_PIN;
 		SysSettings.useSD = false;
 		SysSettings.SDCardSelPin = GEVCU_SDCARD_SEL;
+		SysSettings.LED_CANTX = 13; //We do have an LED at pin 13. Use it for both
+		SysSettings.LED_CANRX = 13; //RX and TX.
+		SysSettings.LED_LOGGING = 255; //we just don't have an LED to use for this.
+		pinMode(13, OUTPUT);
 	}
 	else //CANDUE
 	{
@@ -125,6 +129,12 @@ void loadSettings()
 		SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
 		SysSettings.useSD = true;
 		SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
+		SysSettings.LED_CANTX = 73; //The Arduino Due has three LEDs 
+		SysSettings.LED_CANRX = 72; //so we can use them all
+		SysSettings.LED_LOGGING = 13; //The above two are active low. This is active high.
+		pinMode(13, OUTPUT); //just to be sure they're outputs
+		pinMode(73, OUTPUT);
+		pinMode(72, OUTPUT);
 	}
 }
 

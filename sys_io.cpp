@@ -150,6 +150,12 @@ void setOutput(uint8_t which, boolean active) {
 	else digitalWrite(out[which], LOW);
 }
 
+void toggleOutput(uint8_t which) 
+{
+	if (which == 255) return;
+	digitalWrite(which, !digitalRead(which));
+}
+
 //get current value of output state (high?)
 boolean getOutput(uint8_t which) {
 	if (which >= NUM_OUTPUT) return false;
