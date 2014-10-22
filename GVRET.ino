@@ -120,6 +120,7 @@ void loadSettings()
 		SysSettings.LED_CANRX = 13; //RX and TX.
 		SysSettings.LED_LOGGING = 255; //we just don't have an LED to use for this.
 		pinMode(13, OUTPUT);
+		digitalWrite(13, LOW);
 	}
 	else //CANDUE
 	{
@@ -132,9 +133,16 @@ void loadSettings()
 		SysSettings.LED_CANTX = 73; //The Arduino Due has three LEDs 
 		SysSettings.LED_CANRX = 72; //so we can use them all
 		SysSettings.LED_LOGGING = 13; //The above two are active low. This is active high.
+		SysSettings.logToggle = false;
+		SysSettings.txToggle = true;
+		SysSettings.rxToggle = true;
 		pinMode(13, OUTPUT); //just to be sure they're outputs
 		pinMode(73, OUTPUT);
 		pinMode(72, OUTPUT);
+		//And set all lights to be off.
+		digitalWrite(13, LOW);
+		digitalWrite(72, HIGH);
+		digitalWrite(73, HIGH);
 	}
 }
 
@@ -157,7 +165,10 @@ void setup()
 			Logger::error("Could not initialize SDCard! No file logging will be possible!");
 		}
 		else SysSettings.SDCardInserted = true;
-		if (settings.autoStartLogging) SysSettings.logToFile = true;
+		if (settings.autoStartLogging) {
+			SysSettings.logToFile = true;
+			Logger::info("Automatically logging to file.");
+		}
 	}
 
     SerialUSB.print("Build number: ");
@@ -224,6 +235,10 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 {
 	uint8_t buff[18];
 	uint8_t temp;
+
+	SysSettings.rxToggle = !SysSettings.rxToggle;
+	setLED(SysSettings.LED_CANRX, SysSettings.rxToggle);
+
 	if (settings.useBinarySerialComm) {
 		if (frame.extended) frame.id |= 1 << 31;
 		buff[0] = 0xF1;

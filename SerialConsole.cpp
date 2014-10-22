@@ -31,6 +31,7 @@
 #include <Wire_EEPROM.h>
 #include <due_can.h>
 #include "config.h"
+#include "sys_io.h"
 
 SerialConsole::SerialConsole() {
 	init();
@@ -440,5 +441,8 @@ bool SerialConsole::handleCANSend(CANRaw &port, char *inputString)
 	else frame.extended = false;
 	frame.length = lenVal;
 	port.sendFrame(frame);
+	Logger::console("Sending frame with id: 0x%x len: %i", frame.id, frame.length);
+	SysSettings.txToggle = !SysSettings.txToggle;
+	setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
 	return true;
 }

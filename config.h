@@ -79,6 +79,9 @@ struct SystemSettings
 	uint8_t LED_CANTX;
 	uint8_t LED_CANRX;
 	uint8_t LED_LOGGING;
+	boolean txToggle; //LED toggle values
+	boolean rxToggle;
+	boolean logToggle;
 };
 
 extern EEPROMSettings settings;

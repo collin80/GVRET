@@ -65,6 +65,7 @@ private:
 	static void buffPutChar(char c);
 	static void buffPutString(char *c);
 	static boolean setupFile();
+	static void flushFileBuff();
 };
 
 #endif /* LOGGER_H_ */

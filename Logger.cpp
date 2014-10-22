@@ -26,6 +26,7 @@
 
 #include "Logger.h"
 #include "config.h"
+#include "sys_io.h"
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 #include <SDFat.h>
@@ -126,6 +127,23 @@ void Logger::buffPutString(char *c)
 	while (*c) *(filebuffer + fileBuffWritePtr++) = *c++;
 }
 
+void Logger::flushFileBuff()
+{
+	Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
+	lastWriteTime = millis();
+	if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
+		Logger::error("Write to SDCard failed!");
+		SysSettings.useSD = false; //borked so stop trying.
+		fileBuffWritePtr = 0;
+		return;
+	}
+	fileRef.sync(); //needed in order to update the file if you aren't closing it ever
+	SysSettings.logToggle = !SysSettings.logToggle;
+	setLED(SysSettings.LED_LOGGING, SysSettings.logToggle);
+	fileBuffWritePtr = 0;
+
+}
+
 boolean Logger::setupFile()
 {
 	if (!fileRef.isOpen())  //file not open. Try to open it.
@@ -156,16 +174,7 @@ boolean Logger::setupFile()
 	//Before we add the next frame see if the buffer is nearly full. if so flush it first.
 	if (fileBuffWritePtr > BUF_SIZE - 40)
 	{
-		Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
-		lastWriteTime = millis();
-		if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
-			Logger::error("Write to SDCard failed!");
-			SysSettings.useSD = false; //borked so stop trying.
-			fileBuffWritePtr = 0;
-			return false;
-		}
-		fileRef.sync(); //needed in order to update the file if you aren't closing it ever
-		fileBuffWritePtr = 0;
+		flushFileBuff();
 	}
 	return true;
 }
@@ -175,16 +184,7 @@ void Logger::loop()
 	if (fileBuffWritePtr > 0) {
 		if (millis() > (lastWriteTime + 1000)) //if it's been at least 1second since the last write and we have data to write
 		{
-			Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
-			lastWriteTime = millis();
-			if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
-				Logger::error("Write to SDCard failed!");
-				SysSettings.useSD = false; //borked so stop trying.
-				fileBuffWritePtr = 0;
-				return;
-			}
-			fileRef.sync();
-			fileBuffWritePtr = 0;
+			flushFileBuff();
 		}
 	}
 }

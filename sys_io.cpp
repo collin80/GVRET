@@ -150,10 +150,11 @@ void setOutput(uint8_t which, boolean active) {
 	else digitalWrite(out[which], LOW);
 }
 
-void toggleOutput(uint8_t which) 
+void setLED(uint8_t which, boolean hi)
 {
 	if (which == 255) return;
-	digitalWrite(which, !digitalRead(which));
+	if (hi) digitalWrite(which, HIGH);
+	else digitalWrite(which, LOW);
 }
 
 //get current value of output state (high?)
