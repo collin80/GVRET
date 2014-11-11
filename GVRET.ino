@@ -235,6 +235,7 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 {
 	uint8_t buff[18];
 	uint8_t temp;
+	uint32_t now = millis(); //could use micros() but it overflows in 70 minutes which sucks
 
 	SysSettings.rxToggle = !SysSettings.rxToggle;
 	setLED(SysSettings.LED_CANRX, SysSettings.rxToggle);
@@ -243,18 +244,22 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 		if (frame.extended) frame.id |= 1 << 31;
 		buff[0] = 0xF1;
 		buff[1] = 0; //0 = canbus frame sending
-		buff[2] = (uint8_t)(frame.id & 0xFF);
-		buff[3] = (uint8_t)(frame.id >> 8);
-		buff[4] = (uint8_t)(frame.id >> 16);
-		buff[5] = (uint8_t)(frame.id >> 24);
-		buff[6] = frame.length + (uint8_t)(whichBus << 4);
+		buff[2] = (uint8_t)(now & 0xFF);
+		buff[3] = (uint8_t)(now >> 8);
+		buff[4] = (uint8_t)(now >> 16);
+		buff[5] = (uint8_t)(now >> 24);
+		buff[6] = (uint8_t)(frame.id & 0xFF);
+		buff[7] = (uint8_t)(frame.id >> 8);
+		buff[8] = (uint8_t)(frame.id >> 16);
+		buff[9] = (uint8_t)(frame.id >> 24);
+		buff[10] = frame.length + (uint8_t)(whichBus << 4);
 		for (int c = 0; c < frame.length; c++)
 		{
-			buff[7 + c] = frame.data.bytes[c];
+			buff[11 + c] = frame.data.bytes[c];
 		}
-		temp = checksumCalc(buff, 7 + frame.length);
-		buff[7 + frame.length] = temp;
-		SerialUSB.write(buff, 8 + frame.length);
+		temp = checksumCalc(buff, 11 + frame.length);
+		buff[11 + frame.length] = temp;
+		SerialUSB.write(buff, 12 + frame.length);
 	}
 	else 
 	{
@@ -330,7 +335,8 @@ void loop()
 {
 	static int loops = 0;
 	CAN_FRAME incoming;
-	CAN_FRAME build_out_frame;
+	static CAN_FRAME build_out_frame;
+	static int out_bus;
 	int in_byte;
 	static byte buff[20];
 	static int step = 0;
@@ -458,23 +464,27 @@ void loop()
 			   else build_out_frame.extended = false;
 			   break;
 		   case 4:
+		       out_bus = in_byte & 1;
+		       break;
+		   case 5:
 			   build_out_frame.length = in_byte & 0xF;
 			   if (build_out_frame.length > 8) build_out_frame.length = 8;
 			   break;
 		   default:
-			   if (step < build_out_frame.length + 5)
+			   if (step < build_out_frame.length + 6)
 			   {
-			      build_out_frame.data.bytes[step - 5] = in_byte;
+			      build_out_frame.data.bytes[step - 6] = in_byte;
 			   }
 			   else 
 			   {
 				   state = IDLE;
 				   //this would be the checksum byte. Compute and compare.
 				   temp8 = checksumCalc(buff, step);
-				   if (temp8 == in_byte) 
-				   {
-						Can0.sendFrame(build_out_frame);
-				   }
+				   //if (temp8 == in_byte) 
+				   //{
+				   if (out_bus == 0) Can0.sendFrame(build_out_frame);
+				   if (out_bus == 1) Can1.sendFrame(build_out_frame);
+				   //}
 			   }
 			   break;
 		   }
@@ -545,7 +555,7 @@ void loop()
 	   }
 	}
   }
-  Logger::loop();
-   //this should still be here. It checks for a flag set during an interrupt
-   sys_io_adc_poll();
+	Logger::loop();
+	//this should still be here. It checks for a flag set during an interrupt
+	sys_io_adc_poll();
 }
