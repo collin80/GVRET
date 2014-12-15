@@ -30,7 +30,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "GVRET.h"
 #include "config.h"
 #include <due_can.h>
-#include <SDFat.h>
+#include <SdFat.h>
 #include <SdFatUtil.h>
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
