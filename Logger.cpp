@@ -29,7 +29,7 @@
 #include "sys_io.h"
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
-#include <SDFat.h>
+#include <SdFat.h>
 #include <SdFatUtil.h>
 
 
