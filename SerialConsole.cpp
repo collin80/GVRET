@@ -89,7 +89,7 @@ void SerialConsole::printMenu() {
 	SerialUSB.println();
 
 	Logger::console("BINSERIAL=%i - Enable/Disable Binary Sending of CANBus Frames to Serial (0=Dis, 1=En)", settings.useBinarySerialComm);
-	Logger::console("BINFILE=%i - Enable/Disable Binary File Format (0=Ascii, 1=Binary)", settings.useBinaryFile);
+	Logger::console("FILETYPE=%i - Set type of file output (0=None, 1 = Binary, 2 = GVRET, 3 = CRTD)", settings.fileOutputType);
 	SerialUSB.println();
 
 	Logger::console("FILEBASE=%s - Set filename base for saving", (char *)settings.fileNameBase);
@@ -249,7 +249,17 @@ void SerialConsole::handleConfigCmd() {
 		handleCANSend(Can1, newString);
 	}
 	else if (cmdString == String("MARK")) { //just ascii based for now
-		if (!settings.useBinaryFile) Logger::file("Mark: %s", newString);
+		if (settings.fileOutputType == GVRET) Logger::file("Mark: %s", newString);
+		if (settings.fileOutputType == CRTD) 
+		{
+			uint8_t buff[40];
+			sprintf((char *)buff, "%f CEV ", millis() / 1000.0f);
+			Logger::fileRaw(buff, strlen((char *)buff));
+			Logger::fileRaw((uint8_t *)newString, strlen(newString));
+			buff[0] = '\r';
+			buff[1] = '\n';
+			Logger::fileRaw(buff, 2);			
+		}
 		if (!settings.useBinarySerialComm) Logger::console("Mark: %s", newString);
 
 	}
@@ -259,11 +269,11 @@ void SerialConsole::handleConfigCmd() {
 		Logger::console("Setting Serial Binary Comm to %i", newValue);
 		settings.useBinarySerialComm = newValue;
 		writeEEPROM = true;
-	} else if (cmdString == String("BINFILE")) {
+	} else if (cmdString == String("FILETYPE")) {
 		if (newValue < 0) newValue = 0;
-		if (newValue > 1) newValue = 1;
-		Logger::console("Setting File Binary Writing to %i", newValue);
-		settings.useBinaryFile = newValue;
+		if (newValue > 3) newValue = 3;
+		Logger::console("Setting File Output Type to %i", newValue);
+		settings.fileOutputType = (FILEOUTPUTTYPE)newValue; //the numbers all intentionally match up so this works
 		writeEEPROM = true;
 	} else if (cmdString == String("FILEBASE")) {
 		Logger::console("Setting File Base Name to %s", newString);

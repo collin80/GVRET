@@ -93,7 +93,7 @@ void loadSettings()
 			settings.CAN1Filters[i].id = 0;
 			settings.CAN1Filters[i].mask = 0;
 		}
-		settings.useBinaryFile = false;
+		settings.fileOutputType = CRTD;
 		settings.useBinarySerialComm = false;
 		settings.autoStartLogging = false;
 		settings.logLevel = 1; //info
@@ -282,10 +282,10 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 
 void sendFrameToFile(CAN_FRAME &frame, int whichBus)
 {
-	uint8_t buff[18];
+	uint8_t buff[40];
 	uint8_t temp;
 	uint32_t timestamp;
-	if (settings.useBinaryFile) {
+	if (settings.fileOutputType == BINARYFILE) {
 		if (frame.extended) frame.id |= 1 << 31;
 		timestamp = millis();
 		buff[0] = (uint8_t)(timestamp & 0xFF);
@@ -303,7 +303,7 @@ void sendFrameToFile(CAN_FRAME &frame, int whichBus)
 		}
 		Logger::fileRaw(buff, 9 + frame.length);
 	}
-	else
+	else if (settings.fileOutputType == GVRET)
 	{
 		sprintf((char *)buff, "%i,%x,%i,%i,%i", millis(), frame.id, frame.extended, whichBus, frame.length);
 		Logger::fileRaw(buff, strlen((char *)buff));
@@ -311,6 +311,22 @@ void sendFrameToFile(CAN_FRAME &frame, int whichBus)
 		for (int c = 0; c < frame.length; c++)
 		{
 			sprintf((char *) buff, ",%x", frame.data.bytes[c]);
+			Logger::fileRaw(buff, strlen((char *)buff));
+		}
+		buff[0] = '\r';
+		buff[1] = '\n';
+		Logger::fileRaw(buff, 2);
+	}
+	else if (settings.fileOutputType == CRTD)
+	{
+		int idBits = 11;
+		if (frame.extended) idBits = 29;
+		sprintf((char *)buff, "%f R%i %x", millis() / 1000.0f, idBits, frame.id);
+		Logger::fileRaw(buff, strlen((char *)buff));
+
+		for (int c = 0; c < frame.length; c++)
+		{
+			sprintf((char *) buff, " %x", frame.data.bytes[c]);
 			Logger::fileRaw(buff, strlen((char *)buff));
 		}
 		buff[0] = '\r';

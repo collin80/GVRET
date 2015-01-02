@@ -42,6 +42,14 @@ struct FILTER {  //should be 10 bytes
 	boolean enabled;
 };
 
+enum FILEOUTPUTTYPE
+{
+	NONE = 0,
+	BINARYFILE = 1,
+	GVRET = 2,
+	CRTD = 3
+};
+
 struct EEPROMSettings { //222 bytes right now. Must stay under 256
 	uint8_t version;
 	
@@ -53,7 +61,7 @@ struct EEPROMSettings { //222 bytes right now. Must stay under 256
 	FILTER CAN1Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
 
 	boolean useBinarySerialComm; //use a binary protocol on the serial link or human readable format?
-	boolean useBinaryFile; //store data in file in binary or text? Binary is more compact and thus faster/more efficient
+	FILEOUTPUTTYPE fileOutputType; //what format should we use for file output?
 
 	char fileNameBase[30]; //Base filename to use
 	char fileNameExt[4]; //extension to use
