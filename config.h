@@ -73,6 +73,8 @@ struct EEPROMSettings { //222 bytes right now. Must stay under 256
 	uint8_t sysType; //0 = CANDUE, 1 = GEVCU
 
 	uint16_t valid; //stores a validity token to make sure EEPROM is not corrupt
+
+	uint8_t singleWireMode; //anything other than 1 means normal mode. 1 means use single wire mode where we strobe the enable line to go into HV mode
 };
 
 struct SystemSettings 
@@ -97,8 +99,8 @@ extern SystemSettings SysSettings;
 
 #define	BUF_SIZE	8192 //buffer size for SDCard - Sending canbus data to the card. Still allocated even for GEVCU but unused in that case
 
-#define CFG_BUILD_NUM	302
-#define CFG_VERSION "GVRET alpha 2014-10-17"
+#define CFG_BUILD_NUM	305
+#define CFG_VERSION "GVRET alpha 2015-03-09"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
 

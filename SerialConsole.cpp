@@ -86,6 +86,7 @@ void SerialConsole::printMenu() {
 	Logger::console("CAN0SEND=ID,LEN,<BYTES SEPARATED BY COMMAS> - Ex: C0SEND=0x200,4,1,2,3,4");
 	Logger::console("CAN1SEND=ID,LEN,<BYTES SEPARATED BY COMMAS> - Ex: C1SEND=0x200,8,00,00,00,10,0xAA,0xBB,0xA0,00");
 	Logger::console("MARK=<Description of what you are doing> - Set a mark in the log file about what you are about to do.");
+	Logger::console("SINGLEWIRE=%i - Use single wire mode (0 = Normal Mode 1 = Single Wire Mode", settings.singleWireMode);
 	SerialUSB.println();
 
 	Logger::console("BINSERIAL=%i - Enable/Disable Binary Sending of CANBus Frames to Serial (0=Dis, 1=En)", settings.useBinarySerialComm);
@@ -262,8 +263,13 @@ void SerialConsole::handleConfigCmd() {
 		}
 		if (!settings.useBinarySerialComm) Logger::console("Mark: %s", newString);
 
-	}
-	else if (cmdString == String("BINSERIAL")) {
+	} else if (cmdString == String("SINGLEWIRE")) {
+		if (newValue < 0) newValue = 0;
+		if (newValue > 1) newValue = 1;
+		Logger::console("Setting Single Wire Mode to %i", newValue);
+		settings.singleWireMode = newValue;
+		writeEEPROM = true;
+	} else if (cmdString == String("BINSERIAL")) {
 		if (newValue < 0) newValue = 0;
 		if (newValue > 1) newValue = 1;
 		Logger::console("Setting Serial Binary Comm to %i", newValue);

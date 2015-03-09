@@ -99,6 +99,7 @@ void loadSettings()
 		settings.logLevel = 1; //info
 		settings.sysType = 0; //CANDUE as default
 		settings.valid = 0; //not used right now
+		settings.singleWireMode = 0; //normal mode
 		EEPROM.write(EEPROM_PAGE, settings);
 	}
 	else {
@@ -148,7 +149,7 @@ void loadSettings()
 
 void setup()
 {
-	delay(5000); //just for testing. Don't use in production
+	//delay(5000); //just for testing. Don't use in production
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
@@ -175,7 +176,7 @@ void setup()
     SerialUSB.println(CFG_BUILD_NUM);
 
     sys_early_setup();
-	setup_sys_io();
+    setup_sys_io();
 
 	if (settings.CAN0_Enabled)
 	{
@@ -386,6 +387,10 @@ void loop()
 	Can0.read(incoming);
 	sendFrameToUSB(incoming, 0);
 	if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
+		//these two lines are for testing. Don't uncomment them or you get slapped.
+        //incoming.id += 1;
+        //Can0.sendFrame(incoming);
+        sendFrameToUSB(incoming, 0);
   }
 
   if (Can1.available()) {
@@ -498,8 +503,41 @@ void loop()
 				   temp8 = checksumCalc(buff, step);
 				   //if (temp8 == in_byte) 
 				   //{
+				   if (settings.singleWireMode == 1)
+				   {
+					   if (build_out_frame.id == 0x100)
+					   {
+						   if (out_bus == 0)
+						   {
+							   if (SysSettings.CAN0EnablePin != 255) digitalWrite(SysSettings.CAN0EnablePin, LOW);
+							   delay(5);
+						   }
+						   if (out_bus == 1)
+						   {
+							   if (SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, LOW);
+							   delay(5);
+						   }
+					   }
+				   }
 				   if (out_bus == 0) Can0.sendFrame(build_out_frame);
 				   if (out_bus == 1) Can1.sendFrame(build_out_frame);
+
+				   if (settings.singleWireMode == 1)
+				   {
+					   if (build_out_frame.id == 0x100)
+					   {
+						   if (out_bus == 0)
+						   {
+							   if (SysSettings.CAN0EnablePin != 255) digitalWrite(SysSettings.CAN0EnablePin, HIGH);
+							   delay(5);
+						   }
+						   if (out_bus == 1)
+						   {
+							   if (SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, HIGH);
+							   delay(5);
+						   }
+					   }
+				   }
 				   //}
 			   }
 			   break;
