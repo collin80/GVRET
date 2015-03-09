@@ -528,13 +528,13 @@ void loop()
 					   {
 						   if (out_bus == 0)
 						   {
-							   if (SysSettings.CAN0EnablePin != 255) digitalWrite(SysSettings.CAN0EnablePin, HIGH);
 							   delay(5);
+							   if (SysSettings.CAN0EnablePin != 255) digitalWrite(SysSettings.CAN0EnablePin, HIGH);							   
 						   }
 						   if (out_bus == 1)
 						   {
-							   if (SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, HIGH);
 							   delay(5);
+							   if (SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, HIGH);							   
 						   }
 					   }
 				   }
