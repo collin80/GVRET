@@ -182,7 +182,7 @@ boolean Logger::setupFile()
 void Logger::loop()
 {
 	if (fileBuffWritePtr > 0) {
-		if (millis() > (lastWriteTime + 1000)) //if it's been at least 1second since the last write and we have data to write
+		if (millis() > (lastWriteTime + 1000)) //if it's been at least 1 second since the last write and we have data to write
 		{
 			flushFileBuff();
 		}

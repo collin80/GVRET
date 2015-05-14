@@ -4,7 +4,7 @@
  Created: 7/2/2014 10:10:14 PM
  Author: Collin Kidder
 
-Copyright (c) 2014 Collin Kidder, Michael Neuweiler, Charles Galpin
+Copyright (c) 2014-2015 Collin Kidder, Michael Neuweiler, Charles Galpin
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -148,7 +148,7 @@ void loadSettings()
 
 void setup()
 {
-	delay(5000); //just for testing. Don't use in production
+	//delay(5000); //just for testing. Don't use in production
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
@@ -201,6 +201,7 @@ void setup()
 	}
 
 	SerialUSB.print("Done with init\n");
+	digitalWrite(BLINK_LED, HIGH);
 }
 
 void setPromiscuousMode() {
@@ -231,14 +232,17 @@ uint8_t checksumCalc(uint8_t *buffer, int length)
 	return valu;
 }
 
+void toggleRXLED()
+{
+	SysSettings.rxToggle = !SysSettings.rxToggle;
+	setLED(SysSettings.LED_CANRX, SysSettings.rxToggle);
+}
+
 void sendFrameToUSB(CAN_FRAME &frame, int whichBus) 
 {
 	uint8_t buff[18];
 	uint8_t temp;
 	uint32_t now = millis(); //could use micros() but it overflows in 70 minutes which sucks
-
-	SysSettings.rxToggle = !SysSettings.rxToggle;
-	setLED(SysSettings.LED_CANRX, SysSettings.rxToggle);
 
 	if (settings.useBinarySerialComm) {
 		if (frame.extended) frame.id |= 1 << 31;
@@ -384,17 +388,19 @@ void loop()
 
   if (Can0.available() > 0) {
 	Can0.read(incoming);
-	sendFrameToUSB(incoming, 0);
+	toggleRXLED();
+	if (SerialUSB) sendFrameToUSB(incoming, 0);
 	if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
   }
 
   if (Can1.available()) {
 	Can1.read(incoming); 
-	sendFrameToUSB(incoming, 1);
+	toggleRXLED();
+	if (SerialUSB) sendFrameToUSB(incoming, 1);
 	if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
   }
 
-  if (SerialUSB.available()) {
+  if (SerialUSB && SerialUSB.available()) {
 	in_byte = SerialUSB.read();
 	if (in_byte != -1) { //false alarm....
 	   switch (state) {
@@ -535,6 +541,7 @@ void loop()
 			   if (build_int > 0) 
 			   {
 				   if (build_int > 1000000) build_int = 1000000;
+				   Can0.enable();
 				   Can0.begin(build_int, SysSettings.CAN0EnablePin);
 			   }
 			   else //disable first canbus
@@ -556,6 +563,7 @@ void loop()
 			   if (build_int > 0) 
 			   {
 				   if (build_int > 1000000) build_int = 1000000;
+				   Can1.enable();
 				   Can1.begin(build_int, SysSettings.CAN1EnablePin);
 			   }
 			   else //disable first canbus
