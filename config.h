@@ -73,6 +73,8 @@ struct EEPROMSettings { //222 bytes right now. Must stay under 256
 	uint8_t sysType; //0 = CANDUE, 1 = GEVCU
 
 	uint16_t valid; //stores a validity token to make sure EEPROM is not corrupt
+
+	uint8_t singleWireMode; //anything other than 1 means normal mode. 1 means use single wire mode where we strobe the enable line to go into HV mode
 };
 
 struct SystemSettings 
