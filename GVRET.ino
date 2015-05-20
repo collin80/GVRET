@@ -486,6 +486,19 @@ void loop()
 			   SerialUSB.write(buff, 12);
 			   state = IDLE;
 			   break;
+		   case 7:
+			   //immediately return device information
+			   buff[0] = 0xF1;
+			   buff[1] = 7;
+			   buff[2] = CFG_BUILD_NUM & 0xFF;
+			   buff[3] = (CFG_BUILD_NUM >> 8);
+			   buff[4] = EEPROM_VER;
+			   buff[5] = (unsigned char)settings.fileOutputType;
+			   buff[6] = (unsigned char)settings.autoStartLogging;
+			   buff[7] = settings.singleWireMode;
+			   SerialUSB.write(buff, 8);
+			   state = IDLE;
+			   break; 
 		   }
 		   break;
 	   case BUILD_CAN_FRAME:
@@ -636,6 +649,8 @@ void loop()
 			   state = IDLE;
 			   break;
 		   }
+		   //now, write out the new canbus settings to EEPROM
+		   EEPROM.write(EEPROM_PAGE, settings);
 		   setPromiscuousMode();
 		   step++;
 		   break;
