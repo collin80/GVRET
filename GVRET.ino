@@ -432,30 +432,32 @@ void loop()
 			   //immediately return the data for digital inputs
 			   temp8 = getDigital(0) + (getDigital(1) << 1) + (getDigital(2) << 2) + (getDigital(3) << 3);
 			   buff[0] = 0xF1;
-			   buff[1] = temp8;
-			   temp8 = checksumCalc(buff, 2);
+			   buff[1] = 2; //digital inputs
 			   buff[2] = temp8;
-			   SerialUSB.write(buff, 3);
+			   temp8 = checksumCalc(buff, 2);
+			   buff[3] = temp8;
+			   SerialUSB.write(buff, 4);
 			   state = IDLE;
 			   break;
 		   case 3:
 			   //immediately return data on analog inputs
 			   temp16 = getAnalog(0);
 			   buff[0] = 0xF1;
-			   buff[1] = temp16 & 0xFF;
-			   buff[2] = uint8_t(temp16 >> 8);
+			   buff[1] = 3;
+			   buff[2] = temp16 & 0xFF;
+			   buff[3] = uint8_t(temp16 >> 8);
 			   temp16 = getAnalog(1);
-			   buff[3] = temp16 & 0xFF;
-			   buff[4] = uint8_t(temp16 >> 8);
+			   buff[4] = temp16 & 0xFF;
+			   buff[5] = uint8_t(temp16 >> 8);
 			   temp16 = getAnalog(2);
-			   buff[5] = temp16 & 0xFF;
-			   buff[6] = uint8_t(temp16 >> 8);
+			   buff[6] = temp16 & 0xFF;
+			   buff[7] = uint8_t(temp16 >> 8);
 			   temp16 = getAnalog(3);
-			   buff[7] = temp16 & 0xFF;
-			   buff[8] = uint8_t(temp16 >> 8);
+			   buff[8] = temp16 & 0xFF;
+			   buff[9] = uint8_t(temp16 >> 8);
 			   temp8 = checksumCalc(buff, 9);
-			   buff[9] = temp8;
-			   SerialUSB.write(buff, 10);
+			   buff[10] = temp8;
+			   SerialUSB.write(buff, 11);
 			   state = IDLE;
 			   break;
 		   case 4:
@@ -466,6 +468,23 @@ void loop()
 			   state = SETUP_CANBUS;
 			   step = 0;
 			   buff[0] = 0xF1;
+			   break;
+		   case 6:
+			   //immediately return data on canbus params
+			   buff[0] = 0xF1;
+			   buff[1] = 6;
+			   buff[2] = settings.CAN0_Enabled;
+			   buff[3] = settings.CAN0Speed;
+			   buff[4] = settings.CAN0Speed >> 8;
+			   buff[5] = settings.CAN0Speed >> 16;
+			   buff[6] = settings.CAN0Speed >> 24;
+			   buff[7] = settings.CAN1_Enabled;
+			   buff[8] = settings.CAN1Speed;
+			   buff[9] = settings.CAN1Speed >> 8;
+			   buff[10] = settings.CAN1Speed >> 16;
+			   buff[11] = settings.CAN1Speed >> 24;
+			   SerialUSB.write(buff, 12);
+			   state = IDLE;
 			   break;
 		   }
 		   break;
@@ -621,3 +640,4 @@ void loop()
 	//this should still be here. It checks for a flag set during an interrupt
 	sys_io_adc_poll();
 }
+

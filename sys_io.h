@@ -51,3 +51,4 @@ void sys_io_adc_poll();
 void sys_early_setup();
 void setLED(uint8_t, boolean);
 #endif
+

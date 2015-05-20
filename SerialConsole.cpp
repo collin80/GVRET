@@ -462,3 +462,4 @@ bool SerialConsole::handleCANSend(CANRaw &port, char *inputString)
 	setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
 	return true;
 }
+

@@ -99,8 +99,8 @@ extern SystemSettings SysSettings;
 
 #define	BUF_SIZE	8192 //buffer size for SDCard - Sending canbus data to the card. Still allocated even for GEVCU but unused in that case
 
-#define CFG_BUILD_NUM	310
-#define CFG_VERSION "GVRET alpha 2015-05-13"
+#define CFG_BUILD_NUM	314
+#define CFG_VERSION "GVRET alpha 2015-05-19"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
 
@@ -129,3 +129,4 @@ extern SystemSettings SysSettings;
 #define NUM_OUTPUT	8
 
 #endif /* CONFIG_H_ */
+
