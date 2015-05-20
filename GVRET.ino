@@ -600,10 +600,13 @@ void loop()
 				   if (build_int > 1000000) build_int = 1000000;
 				   Can0.enable();
 				   Can0.begin(build_int, SysSettings.CAN0EnablePin);
+				   settings.CAN0Speed = build_int;
+				   settings.CAN0_Enabled = true;
 			   }
 			   else //disable first canbus
 			   {
 				   Can0.disable();
+				   settings.CAN0_Enabled = false;
 			   }
 			   break;
 		   case 4:
@@ -622,10 +625,13 @@ void loop()
 				   if (build_int > 1000000) build_int = 1000000;
 				   Can1.enable();
 				   Can1.begin(build_int, SysSettings.CAN1EnablePin);
+				   settings.CAN1Speed = build_int;
+				   settings.CAN1_Enabled = true;
 			   }
 			   else //disable first canbus
 			   {
 				   Can1.disable();
+				   settings.CAN0_Enabled = false;
 			   }
 			   state = IDLE;
 			   break;
