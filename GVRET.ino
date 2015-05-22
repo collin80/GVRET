@@ -243,7 +243,7 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 {
 	uint8_t buff[18];
 	uint8_t temp;
-	uint32_t now = millis(); //could use micros() but it overflows in 70 minutes which sucks
+	uint32_t now = micros();
 
 	if (settings.useBinarySerialComm) {
 		if (frame.extended) frame.id |= 1 << 31;
