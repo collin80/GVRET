@@ -366,9 +366,13 @@ void loop()
 	uint8_t temp8;
 	uint16_t temp16;
 	static bool markToggle = false;
+	bool isConnected = false;
+
+	if (SerialUSB) isConnected = true;
 
 	//there is no switch debouncing here at the moment
 	//if mark triggering causes bounce then debounce this later on.
+	/*
 	if (getDigital(0)) {
 		if (!markToggle) {
 			markToggle = true;
@@ -379,33 +383,27 @@ void loop()
 		}
 	}
 	else markToggle = false;
-	
+	*/
 
-  loops++;
-  if (loops > 200000ul) {
-	  loops = 0;
-	  //SerialUSB.print(".");
-  }
-
-  if (Can0.available() > 0) {
+  while (Can0.available()) {
 	Can0.read(incoming);
 	toggleRXLED();
-	if (SerialUSB) sendFrameToUSB(incoming, 0);
+	if (isConnected) sendFrameToUSB(incoming, 0);
 	if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
 		//these two lines are for testing. Don't uncomment them or you get slapped.
         //incoming.id += 1;
         //Can0.sendFrame(incoming);
-        sendFrameToUSB(incoming, 0);
+        //sendFrameToUSB(incoming, 0);
   }
 
-  if (Can1.available()) {
+  while (Can1.available()) {
 	Can1.read(incoming); 
-	toggleRXLED();
-	if (SerialUSB) sendFrameToUSB(incoming, 1);
-	if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
+	//toggleRXLED();
+	if (isConnected) sendFrameToUSB(incoming, 1);
+	//if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
   }
 
-  if (SerialUSB && SerialUSB.available()) {
+  if (isConnected && SerialUSB.available() > 0) {
 	in_byte = SerialUSB.read();
 	if (in_byte != -1) { //false alarm....
 	   switch (state) {
@@ -659,6 +657,6 @@ void loop()
   }
 	Logger::loop();
 	//this should still be here. It checks for a flag set during an interrupt
-	sys_io_adc_poll();
+	//sys_io_adc_poll();
 }
 
