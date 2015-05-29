@@ -28,7 +28,7 @@
 #define LOGGER_H_
 
 #include <Arduino.h>
-#include <SDFat.h>
+#include <SdFat.h>
 #include <SdFatUtil.h>
 #include "config.h"
 
