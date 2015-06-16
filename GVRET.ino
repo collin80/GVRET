@@ -368,7 +368,7 @@ void loop()
 	static bool markToggle = false;
 	bool isConnected = false;
 
-	if (SerialUSB) isConnected = true;
+	/*if (SerialUSB)*/ isConnected = true;
 
 	//there is no switch debouncing here at the moment
 	//if mark triggering causes bounce then debounce this later on.
@@ -390,20 +390,16 @@ void loop()
 	toggleRXLED();
 	if (isConnected) sendFrameToUSB(incoming, 0);
 	if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
-		//these two lines are for testing. Don't uncomment them or you get slapped.
-        //incoming.id += 1;
-        //Can0.sendFrame(incoming);
-        //sendFrameToUSB(incoming, 0);
   }
 
   while (Can1.available()) {
 	Can1.read(incoming); 
-	//toggleRXLED();
+	toggleRXLED();
 	if (isConnected) sendFrameToUSB(incoming, 1);
-	//if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
+	if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
   }
 
-  if (isConnected && SerialUSB.available() > 0) {
+  while (isConnected && SerialUSB.available() > 0) {
 	in_byte = SerialUSB.read();
 	if (in_byte != -1) { //false alarm....
 	   switch (state) {
@@ -645,11 +641,11 @@ void loop()
 				   settings.CAN0_Enabled = false;
 			   }
 			   state = IDLE;
+			    //now, write out the new canbus settings to EEPROM
+				EEPROM.write(EEPROM_PAGE, settings);
+				setPromiscuousMode();
 			   break;
 		   }
-		   //now, write out the new canbus settings to EEPROM
-		   EEPROM.write(EEPROM_PAGE, settings);
-		   setPromiscuousMode();
 		   step++;
 		   break;
 	   }
