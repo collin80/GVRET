@@ -367,6 +367,7 @@ void loop()
 	uint16_t temp16;
 	static bool markToggle = false;
 	bool isConnected = false;
+	int serialCnt;
 
 	/*if (SerialUSB)*/ isConnected = true;
 
@@ -385,23 +386,24 @@ void loop()
 	else markToggle = false;
 	*/
 
-  while (Can0.available()) {
+  if (Can0.available()) {
 	Can0.read(incoming);
 	toggleRXLED();
 	if (isConnected) sendFrameToUSB(incoming, 0);
 	if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
   }
 
-  while (Can1.available()) {
+  if (Can1.available()) {
 	Can1.read(incoming); 
 	toggleRXLED();
 	if (isConnected) sendFrameToUSB(incoming, 1);
 	if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
   }
 
-  while (isConnected && SerialUSB.available() > 0) {
+  serialCnt = 0;
+  while (isConnected && (SerialUSB.available() > 0) && serialCnt < 64) {
+	serialCnt++;
 	in_byte = SerialUSB.read();
-	if (in_byte != -1) { //false alarm....
 	   switch (state) {
 	   case IDLE:
 		   if (in_byte == 0xF1) state = GET_COMMAND;
@@ -649,7 +651,6 @@ void loop()
 		   step++;
 		   break;
 	   }
-	}
   }
 	Logger::loop();
 	//this should still be here. It checks for a flag set during an interrupt
