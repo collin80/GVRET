@@ -637,10 +637,10 @@ void loop()
 				   settings.CAN1Speed = build_int;
 				   settings.CAN1_Enabled = true;
 			   }
-			   else //disable first canbus
+			   else //disable second canbus
 			   {
 				   Can1.disable();
-				   settings.CAN0_Enabled = false;
+				   settings.CAN1_Enabled = false;
 			   }
 			   state = IDLE;
 			    //now, write out the new canbus settings to EEPROM
