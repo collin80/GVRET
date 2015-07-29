@@ -207,10 +207,12 @@ void setup()
 
 	if (settings.CAN0_Enabled)
 	{
+    Can0.enable();
 		Can0.begin(settings.CAN0Speed, SysSettings.CAN0EnablePin);
 	}
 	if (settings.CAN1_Enabled)
 	{
+    Can1.enable();
 		Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
 		if (settings.singleWireMode)
 		{
