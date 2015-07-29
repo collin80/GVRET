@@ -82,6 +82,8 @@ struct SystemSettings
 	uint8_t eepromWPPin;
 	uint8_t CAN0EnablePin;
 	uint8_t CAN1EnablePin;
+	uint8_t SWCANMode0;
+	uint8_t SWCANMode1; 
 	boolean useSD; //should we attempt to use the SDCard? (No logging possible otherwise)
 	boolean logToFile; //are we currently supposed to be logging to file?
 	uint8_t SDCardSelPin;
@@ -99,8 +101,8 @@ extern SystemSettings SysSettings;
 
 #define	BUF_SIZE	8192 //buffer size for SDCard - Sending canbus data to the card. Still allocated even for GEVCU but unused in that case
 
-#define CFG_BUILD_NUM	320
-#define CFG_VERSION "GVRET alpha 2015-07-08"
+#define CFG_BUILD_NUM	321
+#define CFG_VERSION "GVRET alpha 2015-07-26"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
 
@@ -109,12 +111,17 @@ extern SystemSettings SysSettings;
 #define CANDUE_CAN1_EN_PIN		48
 #define CANDUE_USE_SD			1
 #define CANDUE_SDCARD_SEL		10
+#define CANDUE_SWCAN_MODE0		44
+#define CANDUE_SWCAN_MODE1		46
 
 #define GEVCU_EEPROM_WP_PIN		19
 #define GEVCU_CAN0_EN_PIN		255  //GEVCU has a different transceiver with no enable pin
 #define GEVCU_CAN1_EN_PIN		255
 #define GEVCU_USE_SD			0
 #define GEVCU_SDCARD_SEL		10
+#define GEVCU_SWCAN_MODE0		255
+#define GEVCU_SWCAN_MODE1		255
+
 
 /*
  * SERIAL CONFIGURATION

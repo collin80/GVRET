@@ -50,8 +50,14 @@ enum STATE {
 	SET_DIG_OUTPUTS,
 	SETUP_CANBUS,
 	GET_CANBUS_PARAMS,
-	GET_DEVICE_INFO
+	GET_DEVICE_INFO,
+	SET_SINGLEWIRE_MODE
 };
+
+void loadSettings();
+void setSWCANSleep();
+void setSWCANEnabled();
+void setSWCANWakeup();
 
 #endif /* GVRET_H_ */
 
