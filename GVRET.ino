@@ -617,6 +617,7 @@ void loop()
 		   step++;
 		   break;
 	   case TIME_SYNC:
+		   state = IDLE;
 		   break;
 	   case SET_DIG_OUTPUTS: //todo: validate the XOR byte
 		   buff[1] = in_byte;
