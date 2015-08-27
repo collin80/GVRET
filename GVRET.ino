@@ -543,6 +543,11 @@ void loop()
 			   buff[2] = 0xDE;
 			   buff[3] = 0xAD;
 			   SerialUSB.write(buff, 4);
+		   case 10:
+			   buff[0] = 0xF1;
+			   state = SET_LEDPINS;
+			   step = 0;
+			   break;
 		   }
 		   break;
 	   case BUILD_CAN_FRAME:
@@ -706,6 +711,29 @@ void loop()
 		   EEPROM.write(EEPROM_PAGE, settings);
 		   state = IDLE;
 		   break;
+	   case SET_LEDPINS:
+		   switch (step)
+		   {
+		   case 0:
+			   build_int = in_byte;
+			   break;
+		   case 1:
+			   build_int |= in_byte << 8;
+			   break;
+		   case 2:
+			   build_int |= in_byte << 16;
+			   SysSettings.LED_CANTX = build_int & 0xff;
+			   SysSettings.LED_CANRX = (build_int >> 8) & 0xff;
+			   SysSettings.LED_LOGGING = (build_int >> 16) & 0xff;
+			   state = IDLE;
+			   //now, write out the new canbus settings to EEPROM
+			   EEPROM.write(EEPROM_PAGE, settings);
+			   setPromiscuousMode();
+			   break;
+		   }
+		   step++;
+		   break;
+
 	   }
   }
 	Logger::loop();
