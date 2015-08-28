@@ -728,7 +728,6 @@ void loop()
 			   state = IDLE;
 			   //now, write out the new canbus settings to EEPROM
 			   EEPROM.write(EEPROM_PAGE, settings);
-			   setPromiscuousMode();
 			   break;
 		   }
 		   step++;
