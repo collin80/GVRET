@@ -110,44 +110,62 @@ void loadSettings()
 
 	SysSettings.SDCardInserted = false;
 
-	if (settings.sysType == 1) { //GEVCU
-		Logger::console("Running on GEVCU hardware");
-		SysSettings.eepromWPPin = GEVCU_EEPROM_WP_PIN;
-		SysSettings.CAN0EnablePin = GEVCU_CAN0_EN_PIN;
-		SysSettings.CAN1EnablePin = GEVCU_CAN1_EN_PIN;
-		SysSettings.SWCANMode0 = GEVCU_SWCAN_MODE0;
-		SysSettings.SWCANMode1 = GEVCU_SWCAN_MODE1;
-		SysSettings.useSD = false;
-		SysSettings.SDCardSelPin = GEVCU_SDCARD_SEL;
-		SysSettings.LED_CANTX = 13; //We do have an LED at pin 13. Use it for both
-		SysSettings.LED_CANRX = 13; //RX and TX.
-		SysSettings.LED_LOGGING = 255; //we just don't have an LED to use for this.
-		pinMode(13, OUTPUT);
-		digitalWrite(13, LOW);
-	}
-	else //CANDUE
-	{
-		Logger::console("Running on CANDue hardware");
-		SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
-		SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
-		SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
-		SysSettings.SWCANMode0 = CANDUE_SWCAN_MODE0;
-		SysSettings.SWCANMode1 = CANDUE_SWCAN_MODE1;
-		SysSettings.useSD = true;
-		SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
-		SysSettings.LED_CANTX = 73; //The Arduino Due has three LEDs 
-		SysSettings.LED_CANRX = 72; //so we can use them all
-		SysSettings.LED_LOGGING = 13; //The above two are active low. This is active high.
-		SysSettings.logToggle = false;
-		SysSettings.txToggle = true;
-		SysSettings.rxToggle = true;
-		pinMode(13, OUTPUT); //just to be sure they're outputs
-		pinMode(73, OUTPUT);
-		pinMode(72, OUTPUT);
-		//And set all lights to be off.
-		digitalWrite(13, LOW);
-		digitalWrite(72, HIGH);
-		digitalWrite(73, HIGH);
+
+	switch (settings.sysType) {
+		case 1:  //GEVCU
+			Logger::console("Running on GEVCU hardware");
+			SysSettings.eepromWPPin = GEVCU_EEPROM_WP_PIN;
+			SysSettings.CAN0EnablePin = GEVCU_CAN0_EN_PIN;
+			SysSettings.CAN1EnablePin = GEVCU_CAN1_EN_PIN;
+			SysSettings.SWCANMode0 = GEVCU_SWCAN_MODE0;
+			SysSettings.SWCANMode1 = GEVCU_SWCAN_MODE1;
+			SysSettings.useSD = false;
+			SysSettings.SDCardSelPin = GEVCU_SDCARD_SEL;
+			SysSettings.LED_CANTX = 13; //We do have an LED at pin 13. Use it for both
+			SysSettings.LED_CANRX = 13; //RX and TX.
+			SysSettings.LED_LOGGING = 255; //we just don't have an LED to use for this.
+			pinMode(13, OUTPUT);
+			digitalWrite(13, LOW);
+			break;
+		case 2: //CANDUE13
+			Logger::console("Running on CANDue13 hardware");
+			SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
+			SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
+			SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
+			SysSettings.SWCANMode0 = CANDUE_SWCAN_MODE0;
+			SysSettings.SWCANMode1 = CANDUE_SWCAN_MODE1;
+			SysSettings.useSD = true;
+			SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
+			SysSettings.LED_CANTX = 13; //The Arduino Due has three LEDs 
+			SysSettings.LED_CANRX = 13; //so we can use them all
+			SysSettings.LED_LOGGING = 13; //The above two are active low. This is active high.
+			SysSettings.logToggle = false;
+			SysSettings.txToggle = true;
+			SysSettings.rxToggle = true;
+			pinMode(13, OUTPUT); //just to be sure it's an output
+			digitalWrite(13, LOW);
+		otherwise: //CANDUE
+			Logger::console("Running on CANDue hardware");
+			SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
+			SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
+			SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
+			SysSettings.SWCANMode0 = CANDUE_SWCAN_MODE0;
+			SysSettings.SWCANMode1 = CANDUE_SWCAN_MODE1;
+			SysSettings.useSD = true;
+			SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
+			SysSettings.LED_CANTX = 73; //The Arduino Due has three LEDs 
+			SysSettings.LED_CANRX = 72; //so we can use them all
+			SysSettings.LED_LOGGING = 13; //The above two are active low. This is active high.
+			SysSettings.logToggle = false;
+			SysSettings.txToggle = true;
+			SysSettings.rxToggle = true;
+			pinMode(13, OUTPUT); //just to be sure they're outputs
+			pinMode(73, OUTPUT);
+			pinMode(72, OUTPUT);
+			//And set all lights to be off.
+			digitalWrite(13, LOW);
+			digitalWrite(72, HIGH);
+			digitalWrite(73, HIGH);
 	}
 }
 
@@ -545,7 +563,7 @@ void loop()
 			   SerialUSB.write(buff, 4);
 		   case 10:
 			   buff[0] = 0xF1;
-			   state = SET_LEDPINS;
+			   state = SET_SYSTYPE;
 			   step = 0;
 			   break;
 		   }
@@ -711,28 +729,12 @@ void loop()
 		   EEPROM.write(EEPROM_PAGE, settings);
 		   state = IDLE;
 		   break;
-	   case SET_LEDPINS:
-		   switch (step)
-		   {
-		   case 0:
-			   build_int = in_byte;
-			   break;
-		   case 1:
-			   build_int |= in_byte << 8;
-			   break;
-		   case 2:
-			   build_int |= in_byte << 16;
-			   SysSettings.LED_CANTX = build_int & 0xff;
-			   SysSettings.LED_CANRX = (build_int >> 8) & 0xff;
-			   SysSettings.LED_LOGGING = (build_int >> 16) & 0xff;
-			   state = IDLE;
-			   //now, write out the new canbus settings to EEPROM
-			   EEPROM.write(EEPROM_PAGE, settings);
-			   break;
-		   }
-		   step++;
+	   case SET_SYSTYPE:
+		   settings.sysType = in_byte;
+		   loadSettings();
+		   EEPROM.write(EEPROM_PAGE, settings);
+		   state = IDLE;
 		   break;
-
 	   }
   }
 	Logger::loop();
