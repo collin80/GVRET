@@ -566,6 +566,11 @@ void loop()
 			   state = SET_SYSTYPE;
 			   step = 0;
 			   break;
+		   case 11:
+			   state = ECHO_CAN_FRAME;
+			   buff[0] = 0xF1;
+			   step = 0;
+			   break;
 		   }
 		   break;
 	   case BUILD_CAN_FRAME:
@@ -734,6 +739,54 @@ void loop()
 		   loadSettings();
 		   EEPROM.write(EEPROM_PAGE, settings);
 		   state = IDLE;
+		   break;
+	   case ECHO_CAN_FRAME:
+		   buff[1 + step] = in_byte;
+		   switch (step) {
+		   case 0:
+			   build_out_frame.id = in_byte;
+			   break;
+		   case 1:
+			   build_out_frame.id |= in_byte << 8;
+			   break;
+		   case 2:
+			   build_out_frame.id |= in_byte << 16;
+			   break;
+		   case 3:
+			   build_out_frame.id |= in_byte << 24;
+			   if (build_out_frame.id & 1 << 31) 
+			   {
+				   build_out_frame.id &= 0x7FFFFFFF;
+				   build_out_frame.extended = true;
+			   }
+			   else build_out_frame.extended = false;
+			   break;
+		   case 4:
+		       out_bus = in_byte & 1;
+		       break;
+		   case 5:
+			   build_out_frame.length = in_byte & 0xF;
+			   if (build_out_frame.length > 8) build_out_frame.length = 8;
+			   break;
+		   default:
+			   if (step < build_out_frame.length + 6)
+			   {
+			      build_out_frame.data.bytes[step - 6] = in_byte;
+			   }
+			   else 
+			   {
+				   state = IDLE;
+				   //this would be the checksum byte. Compute and compare.
+				   temp8 = checksumCalc(buff, step);
+				   //if (temp8 == in_byte) 
+				   //{
+				   toggleRXLED();
+				   if (isConnected) sendFrameToUSB(build_out_frame, 0);
+				   //}
+			   }
+			   break;
+		   }
+		   step++;
 		   break;
 	   }
   }
