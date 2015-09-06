@@ -45,7 +45,7 @@ uint32_t Logger::lastWriteTime = 0;
  * printf() style, see Logger::log()
  *
  */
-void Logger::debug(char *message, ...)
+void Logger::debug(const char *message, ...)
 {
     if (logLevel > Debug) {
         return;
@@ -61,7 +61,7 @@ void Logger::debug(char *message, ...)
  * Output a info message with a variable amount of parameters
  * printf() style, see Logger::log()
  */
-void Logger::info(char *message, ...)
+void Logger::info(const char *message, ...)
 {
     if (logLevel > Info) {
         return;
@@ -77,7 +77,7 @@ void Logger::info(char *message, ...)
  * Output a warning message with a variable amount of parameters
  * printf() style, see Logger::log()
  */
-void Logger::warn(char *message, ...)
+void Logger::warn(const char *message, ...)
 {
     if (logLevel > Warn) {
         return;
@@ -93,7 +93,7 @@ void Logger::warn(char *message, ...)
  * Output a error message with a variable amount of parameters
  * printf() style, see Logger::log()
  */
-void Logger::error(char *message, ...)
+void Logger::error(const char *message, ...)
 {
     if (logLevel > Error) {
         return;
@@ -109,7 +109,7 @@ void Logger::error(char *message, ...)
  * Output a comnsole message with a variable amount of parameters
  * printf() style, see Logger::logMessage()
  */
-void Logger::console(char *message, ...)
+void Logger::console(const char *message, ...)
 {
     va_list args;
     va_start(args, message);
@@ -122,7 +122,7 @@ void Logger::buffPutChar(char c)
 	*(filebuffer + fileBuffWritePtr++) = c;
 }
 
-void Logger::buffPutString(char *c)
+void Logger::buffPutString(const char *c)
 {
 	while (*c) *(filebuffer + fileBuffWritePtr++) = *c++;
 }
@@ -189,7 +189,7 @@ void Logger::loop()
 	}
 }
 
-void Logger::file(char *message, ...) 
+void Logger::file(const char *message, ...)
 {
 	if (!SysSettings.SDCardInserted) return; // not possible to log without card
 
@@ -355,7 +355,7 @@ boolean Logger::isDebug()
  * %t - prints the next parameter as boolean ('T' or 'F')
  * %T - prints the next parameter as boolean ('true' or 'false')
  */
-void Logger::log(LogLevel level, char *format, va_list args)
+void Logger::log(LogLevel level, const char *format, va_list args)
 {
     lastLogTime = millis();
     SerialUSB.print(lastLogTime);
@@ -402,7 +402,7 @@ void Logger::log(LogLevel level, char *format, va_list args)
  * %t - prints the next parameter as boolean ('T' or 'F')
  * %T - prints the next parameter as boolean ('true' or 'false')
  */
-void Logger::logMessage(char *format, va_list args)
+void Logger::logMessage(const char *format, va_list args)
 {
     for (; *format != 0; ++format) {
         if (*format == '%') {

@@ -85,16 +85,16 @@ void loadSettings()
 			settings.CAN1Filters[i].id = 0;
 			settings.CAN1Filters[i].mask = 0;
 		}
-		for (int j = 3; i < 8; i++)
+		for (int j = 3; j < 8; j++)
 		{
-			settings.CAN0Filters[i].enabled = true;
-			settings.CAN0Filters[i].extended = false;
-			settings.CAN0Filters[i].id = 0;
-			settings.CAN0Filters[i].mask = 0;
-			settings.CAN1Filters[i].enabled = true;
-			settings.CAN1Filters[i].extended = false;
-			settings.CAN1Filters[i].id = 0;
-			settings.CAN1Filters[i].mask = 0;
+			settings.CAN0Filters[j].enabled = true;
+			settings.CAN0Filters[j].extended = false;
+			settings.CAN0Filters[j].id = 0;
+			settings.CAN0Filters[j].mask = 0;
+			settings.CAN1Filters[j].enabled = true;
+			settings.CAN1Filters[j].extended = false;
+			settings.CAN1Filters[j].id = 0;
+			settings.CAN1Filters[j].mask = 0;
 		}
 		settings.fileOutputType = CRTD;
 		settings.useBinarySerialComm = false;
