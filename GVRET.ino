@@ -147,7 +147,8 @@ void loadSettings()
 			SysSettings.rxToggle = true;
 			pinMode(13, OUTPUT); //just to be sure it's an output
 			digitalWrite(13, LOW);
-		otherwise: //CANDUE
+			break;
+		default: //CANDUE
 			Logger::console("Running on CANDue hardware");
 			SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
 			SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
@@ -169,6 +170,7 @@ void loadSettings()
 			digitalWrite(13, LOW);
 			digitalWrite(72, HIGH);
 			digitalWrite(73, HIGH);
+			break;
 	}
 }
 
