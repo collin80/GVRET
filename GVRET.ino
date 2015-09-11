@@ -278,7 +278,7 @@ void setPromiscuousMode() {
 	Can1.setRXFilter(filter, 0, 0, true);
   }  
   //standard
-  for (int filter = 3; filter < 7; filter++) {
+  for (filter = 3; filter < 7; filter++) {
 	Can0.setRXFilter(filter, 0, 0, false);
 	Can1.setRXFilter(filter, 0, 0, false);
   }  
@@ -569,6 +569,8 @@ void loop()
 			   buff[2] = 0xDE;
 			   buff[3] = 0xAD;
 			   SerialUSB.write(buff, 4);
+			   state = IDLE;
+			   break;
 		   case 10:
 			   buff[0] = 0xF1;
 			   state = SET_SYSTYPE;
@@ -743,9 +745,9 @@ void loop()
 		   state = IDLE;
 		   break;
 	   case SET_SYSTYPE:
-		   settings.sysType = in_byte;
-		   loadSettings();
+		   settings.sysType = in_byte;		   
 		   EEPROM.write(EEPROM_PAGE, settings);
+		   loadSettings();
 		   state = IDLE;
 		   break;
 	   case ECHO_CAN_FRAME:
