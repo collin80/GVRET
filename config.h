@@ -82,8 +82,8 @@ struct SystemSettings
 	uint8_t eepromWPPin;
 	uint8_t CAN0EnablePin;
 	uint8_t CAN1EnablePin;
-	uint8_t SWCANMode0;
-	uint8_t SWCANMode1; 
+	uint8_t SWCANMode0Pin;
+	uint8_t SWCANMode1Pin; 
 	boolean useSD; //should we attempt to use the SDCard? (No logging possible otherwise)
 	boolean logToFile; //are we currently supposed to be logging to file?
 	uint8_t SDCardSelPin;
