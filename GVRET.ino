@@ -113,15 +113,14 @@ void loadSettings()
 
 	SysSettings.SDCardInserted = false;
 
-
 	switch (settings.sysType) {
 		case 1:  //GEVCU
 			Logger::console("Running on GEVCU hardware");
 			SysSettings.eepromWPPin = GEVCU_EEPROM_WP_PIN;
 			SysSettings.CAN0EnablePin = GEVCU_CAN0_EN_PIN;
 			SysSettings.CAN1EnablePin = GEVCU_CAN1_EN_PIN;
-			SysSettings.SWCANMode0 = GEVCU_SWCAN_MODE0;
-			SysSettings.SWCANMode1 = GEVCU_SWCAN_MODE1;
+			SysSettings.SWCANMode0Pin = GEVCU_SWCAN_MODE0;
+			SysSettings.SWCANMode1Pin = GEVCU_SWCAN_MODE1;
 			SysSettings.useSD = false;
 			SysSettings.SDCardSelPin = GEVCU_SDCARD_SEL;
 			SysSettings.LED_CANTX = 13; //We do have an LED at pin 13. Use it for both
@@ -135,8 +134,8 @@ void loadSettings()
 			SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
 			SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
 			SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
-			SysSettings.SWCANMode0 = CANDUE_SWCAN_MODE0;
-			SysSettings.SWCANMode1 = CANDUE_SWCAN_MODE1;
+			SysSettings.SWCANMode0Pin = CANDUE_SWCAN_MODE0;
+			SysSettings.SWCANMode1Pin = CANDUE_SWCAN_MODE1;
 			SysSettings.useSD = true;
 			SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
 			SysSettings.LED_CANTX = 13; //The Arduino Due has three LEDs 
@@ -153,8 +152,8 @@ void loadSettings()
 			SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
 			SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
 			SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
-			SysSettings.SWCANMode0 = CANDUE_SWCAN_MODE0;
-			SysSettings.SWCANMode1 = CANDUE_SWCAN_MODE1;
+			SysSettings.SWCANMode0Pin = CANDUE_SWCAN_MODE0;
+			SysSettings.SWCANMode1Pin = CANDUE_SWCAN_MODE1;
 			SysSettings.useSD = true;
 			SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
 			SysSettings.LED_CANTX = 73; //The Arduino Due has three LEDs 
@@ -172,26 +171,34 @@ void loadSettings()
 			digitalWrite(73, HIGH);
 			break;
 	}
+	if (SysSettings.SWCANMode0Pin != 255) pinMode(SysSettings.SWCANMode0Pin, OUTPUT);
+	if (SysSettings.SWCANMode1Pin != 255) pinMode(SysSettings.SWCANMode1Pin, OUTPUT);
+	
+	if (SysSettings.CAN0EnablePin != 255) pinMode(SysSettings.CAN0EnablePin, OUTPUT);
+	if (SysSettings.CAN1EnablePin != 255) pinMode(SysSettings.CAN1EnablePin, OUTPUT);
+		
+	if (settings.singleWireMode && settings.CAN1_Enabled) setSWCANEnabled();
+	else setSWCANSleep(); //start out setting single wire to sleep. 
 }
 
 void setSWCANSleep()
 {
-	if (SysSettings.SWCANMode0 != 255) digitalWrite(SysSettings.SWCANMode0, LOW);
-	if (SysSettings.SWCANMode1 != 255) digitalWrite(SysSettings.SWCANMode1, LOW);
+	if (SysSettings.SWCANMode0Pin != 255) digitalWrite(SysSettings.SWCANMode0Pin, LOW);
+	if (SysSettings.SWCANMode1Pin != 255) digitalWrite(SysSettings.SWCANMode1Pin, LOW);
 	if (settings.CAN1_Enabled && SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, HIGH);
 }
 
 void setSWCANEnabled()
 {
-	if (SysSettings.SWCANMode0 != 255) digitalWrite(SysSettings.SWCANMode0, HIGH);
-	if (SysSettings.SWCANMode1 != 255) digitalWrite(SysSettings.SWCANMode1, HIGH);
+	if (SysSettings.SWCANMode0Pin != 255) digitalWrite(SysSettings.SWCANMode0Pin, HIGH);
+	if (SysSettings.SWCANMode1Pin != 255) digitalWrite(SysSettings.SWCANMode1Pin, HIGH);
 	if (settings.CAN1_Enabled && SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, LOW);
 }
 
 void setSWCANWakeup()
 {
-	if (SysSettings.SWCANMode0 != 255) digitalWrite(SysSettings.SWCANMode0, LOW);
-	if (SysSettings.SWCANMode1 != 255) digitalWrite(SysSettings.SWCANMode1, HIGH);
+	if (SysSettings.SWCANMode0Pin != 255) digitalWrite(SysSettings.SWCANMode0Pin, LOW);
+	if (SysSettings.SWCANMode1Pin != 255) digitalWrite(SysSettings.SWCANMode1Pin, HIGH);
 }
 
 void setup()
@@ -225,17 +232,16 @@ void setup()
     sys_early_setup();
     setup_sys_io();
 
-	if (SysSettings.SWCANMode0 != 255) pinMode(SysSettings.SWCANMode0, OUTPUT);
-	if (SysSettings.SWCANMode1 != 255) pinMode(SysSettings.SWCANMode1, OUTPUT);
-
 	if (settings.CAN0_Enabled)
 	{
-    Can0.enable();
+		Can0.enable();
 		Can0.begin(settings.CAN0Speed, SysSettings.CAN0EnablePin);
 	}
+	else Can0.disable();
+
 	if (settings.CAN1_Enabled)
 	{
-    Can1.enable();
+		Can1.enable();
 		Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
 		if (settings.singleWireMode)
 		{
@@ -246,6 +252,7 @@ void setup()
 			setSWCANSleep();
 		}
 	}
+	else Can1.disable();
 
 	for (int i = 0; i < 7; i++) 
 	{
@@ -278,7 +285,7 @@ void setPromiscuousMode() {
 	Can1.setRXFilter(filter, 0, 0, true);
   }  
   //standard
-  for (int filter = 3; filter < 7; filter++) {
+  for (filter = 3; filter < 7; filter++) {
 	Can0.setRXFilter(filter, 0, 0, false);
 	Can1.setRXFilter(filter, 0, 0, false);
   }  
@@ -569,6 +576,8 @@ void loop()
 			   buff[2] = 0xDE;
 			   buff[3] = 0xAD;
 			   SerialUSB.write(buff, 4);
+			   state = IDLE;
+			   break;
 		   case 10:
 			   buff[0] = 0xF1;
 			   state = SET_SYSTYPE;
@@ -743,9 +752,9 @@ void loop()
 		   state = IDLE;
 		   break;
 	   case SET_SYSTYPE:
-		   settings.sysType = in_byte;
-		   loadSettings();
+		   settings.sysType = in_byte;		   
 		   EEPROM.write(EEPROM_PAGE, settings);
+		   loadSettings();
 		   state = IDLE;
 		   break;
 	   case ECHO_CAN_FRAME:
