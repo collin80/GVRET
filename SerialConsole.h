@@ -48,12 +48,15 @@ private:
 	int ptrBuffer;
 	int state;
     
-    void init();
+	void init();
 	void handleConsoleCmd();
 	void handleShortCmd();
-    void handleConfigCmd();
+	void handleConfigCmd();
+	void handleLawicelCmd();
 	bool handleFilterSet(uint8_t bus, uint8_t filter, char *values);
 	bool handleCANSend(CANRaw &port, char *inputString);
+	unsigned int parseHexCharacter(char chr);
+	unsigned int parseHexString(char *str, int length);
 };
 
 #endif /* SERIALCONSOLE_H_ */

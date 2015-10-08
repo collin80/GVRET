@@ -269,6 +269,11 @@ void setup()
 	}
 
 	fwReceiver = new FirmwareReceiver(&Can0, 0x1FDA4C36, 0x100);
+	
+	SysSettings.lawicelMode = false;
+	SysSettings.lawicelAutoPoll = false;
+	SysSettings.lawicelTimestamping = false;
+	SysSettings.lawicelPollCounter = 0;
 
 	SerialUSB.print("Done with init\n");
 	digitalWrite(BLINK_LED, HIGH);
@@ -310,47 +315,78 @@ void toggleRXLED()
 
 void sendFrameToUSB(CAN_FRAME &frame, int whichBus) 
 {
-	uint8_t buff[18];
+	uint8_t buff[22];
 	uint8_t temp;
 	uint32_t now = micros();
-
-	if (settings.useBinarySerialComm) {
-		if (frame.extended) frame.id |= 1 << 31;
-		buff[0] = 0xF1;
-		buff[1] = 0; //0 = canbus frame sending
-		buff[2] = (uint8_t)(now & 0xFF);
-		buff[3] = (uint8_t)(now >> 8);
-		buff[4] = (uint8_t)(now >> 16);
-		buff[5] = (uint8_t)(now >> 24);
-		buff[6] = (uint8_t)(frame.id & 0xFF);
-		buff[7] = (uint8_t)(frame.id >> 8);
-		buff[8] = (uint8_t)(frame.id >> 16);
-		buff[9] = (uint8_t)(frame.id >> 24);
-		buff[10] = frame.length + (uint8_t)(whichBus << 4);
-		for (int c = 0; c < frame.length; c++)
-		{
-			buff[11 + c] = frame.data.bytes[c];
-		}
-		temp = checksumCalc(buff, 11 + frame.length);
-		buff[11 + frame.length] = temp;
-		SerialUSB.write(buff, 12 + frame.length);
-	}
-	else 
+	
+	if (SysSettings.lawicelMode)
 	{
-		SerialUSB.print(millis());
-		SerialUSB.print(" - ");
-		SerialUSB.print(frame.id, HEX);
-		if (frame.extended) SerialUSB.print(" X ");
-		else SerialUSB.print(" S ");
-		SerialUSB.print(whichBus);
-		SerialUSB.print(" ");
-		SerialUSB.print(frame.length);
-		for (int c = 0; c < frame.length; c++)
+		if (frame.extended)
 		{
-			SerialUSB.print(" ");
-			SerialUSB.print(frame.data.bytes[c], HEX);
+			SerialUSB.print("T");
+			sprintf((char *)buff, "%08x", frame.id);
+			SerialUSB.print((char *)buff);
 		}
-		SerialUSB.println();
+		else
+		{
+			SerialUSB.print("t");
+			sprintf((char *)buff, "%03x", frame.id);
+			SerialUSB.print((char *)buff);
+		}
+		SerialUSB.print(frame.length);
+		for (int i = 0; i < frame.length; i++)
+		{
+			sprintf((char *)buff, "%02x", frame.data.byte[i]);
+			SerialUSB.print((char *)buff);
+		}
+		if (SysSettings.lawicelTimestamping)
+		{
+			uint16_t timestamp = (uint16_t)millis();
+			sprintf((char *)buff, "%04x", timestamp);
+			SerialUSB.print((char *)buff);
+		}
+		SerialUSB.write(13);
+	}
+	else
+	{
+		if (settings.useBinarySerialComm) {
+			if (frame.extended) frame.id |= 1 << 31;
+			buff[0] = 0xF1;
+			buff[1] = 0; //0 = canbus frame sending
+			buff[2] = (uint8_t)(now & 0xFF);
+			buff[3] = (uint8_t)(now >> 8);
+			buff[4] = (uint8_t)(now >> 16);
+			buff[5] = (uint8_t)(now >> 24);
+			buff[6] = (uint8_t)(frame.id & 0xFF);
+			buff[7] = (uint8_t)(frame.id >> 8);
+			buff[8] = (uint8_t)(frame.id >> 16);
+			buff[9] = (uint8_t)(frame.id >> 24);
+			buff[10] = frame.length + (uint8_t)(whichBus << 4);
+			for (int c = 0; c < frame.length; c++)
+			{
+				buff[11 + c] = frame.data.bytes[c];
+			}
+			temp = checksumCalc(buff, 11 + frame.length);
+			buff[11 + frame.length] = temp;
+			SerialUSB.write(buff, 12 + frame.length);
+		}
+		else 
+		{
+			SerialUSB.print(micros());
+			SerialUSB.print(" - ");
+			SerialUSB.print(frame.id, HEX);
+			if (frame.extended) SerialUSB.print(" X ");
+			else SerialUSB.print(" S ");
+			SerialUSB.print(whichBus);
+			SerialUSB.print(" ");
+			SerialUSB.print(frame.length);
+			for (int c = 0; c < frame.length; c++)
+			{
+				SerialUSB.print(" ");
+				SerialUSB.print(frame.data.bytes[c], HEX);
+			}
+			SerialUSB.println();
+		}
 	}
 }
 
@@ -455,20 +491,24 @@ void loop()
 	else markToggle = false;
 	*/
 
-  if (Can0.available()) {
-	Can0.read(incoming);
-	toggleRXLED();
-	if (isConnected) sendFrameToUSB(incoming, 0);
-	if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
-	fwReceiver->gotFrame(&incoming);
-  }
+	//if (!SysSettings.lawicelMode || SysSettings.lawicelAutoPoll || SysSettings.lawicelPollCounter > 0)
+	//{
+		if (Can0.available()) {
+			Can0.read(incoming);
+			toggleRXLED();
+			if (isConnected) sendFrameToUSB(incoming, 0);
+			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
+			fwReceiver->gotFrame(&incoming);
+		}
 
-  if (Can1.available()) {
-	Can1.read(incoming); 
-	toggleRXLED();
-	if (isConnected) sendFrameToUSB(incoming, 1);
-	if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
-  }
+		if (Can1.available()) {
+			Can1.read(incoming); 
+			toggleRXLED();
+			if (isConnected) sendFrameToUSB(incoming, 1);
+			if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
+		}
+		if (SysSettings.lawicelPollCounter > 0) SysSettings.lawicelPollCounter--;
+	//}
 
   serialCnt = 0;
   while (isConnected && (SerialUSB.available() > 0) && serialCnt < 64) {
@@ -477,7 +517,11 @@ void loop()
 	   switch (state) {
 	   case IDLE:
 		   if (in_byte == 0xF1) state = GET_COMMAND;
-		   else if (in_byte == 0xE7) settings.useBinarySerialComm = true;
+		   else if (in_byte == 0xE7) 
+		  {
+			settings.useBinarySerialComm = true;
+			SysSettings.lawicelMode = false;
+		  }
 		   else 
 		   {
 			   console.rcvCharacter((uint8_t)in_byte);
