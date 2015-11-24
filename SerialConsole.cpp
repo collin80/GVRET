@@ -118,13 +118,114 @@ void SerialConsole::rcvCharacter(uint8_t chr) {
 
 void SerialConsole::handleConsoleCmd() {
 	if (state == STATE_ROOT_MENU) {
-		if (ptrBuffer == 1) { //command is a single ascii character
+		if (ptrBuffer == 1) 
+		{ //command is a single ascii character
 			handleShortCmd();
-		} else { //if cmd over 1 char then assume (for now) that it is a config line
-			handleConfigCmd();
+		} 
+		else //at least two bytes 
+		{
+		        boolean equalSign = false;
+			for (int i = 0; i < ptrBuffer; i++) if (cmdBuffer[i] == '=') equalSign = true;
+			if (equalSign) handleConfigCmd();
+			else handleLawicelCmd();
 		}
 		ptrBuffer = 0; //reset line counter once the line has been processed
 	}
+}
+
+void SerialConsole::handleLawicelCmd()
+{
+    cmdBuffer[ptrBuffer] = 0; //make sure to null terminate
+    CAN_FRAME outFrame;
+    char buff[80];
+    int val;
+    
+    switch (cmdBuffer[0])
+    {
+      case 't': //transmit standard frame	
+	outFrame.id = parseHexString(cmdBuffer + 1, 3);
+	outFrame.length = cmdBuffer[4] - '0';
+	outFrame.extended = false;
+	if (outFrame.length < 0) outFrame.length = 0;
+	if (outFrame.length > 8) outFrame.length = 8;
+	for (int data = 0; data < outFrame.length; data++)
+	{
+		 outFrame.data.bytes[data] = parseHexString(cmdBuffer + 5 + (2 * data), 2);
+	}
+	Can0.sendFrame(outFrame);
+	if (SysSettings.lawicelAutoPoll) SerialUSB.print("z");
+	break;
+      case 'T': //transmit extended frame
+	outFrame.id = parseHexString(cmdBuffer + 1, 8);
+	outFrame.length = cmdBuffer[9] - '0';
+	outFrame.extended = false;
+	if (outFrame.length < 0) outFrame.length = 0;
+	if (outFrame.length > 8) outFrame.length = 8;
+	for (int data = 0; data < outFrame.length; data++)
+	{
+		 outFrame.data.bytes[data] = parseHexString(cmdBuffer + 10 + (2 * data), 2);
+	}
+	Can0.sendFrame(outFrame);
+	if (SysSettings.lawicelAutoPoll) SerialUSB.print("Z");
+	break;	
+      case 'S': //setup canbus baud via predefined speeds
+	val = parseHexCharacter(cmdBuffer[1]);
+	switch (val)
+	{
+	  case 0:
+	    settings.CAN0Speed = 10000;
+	    break;
+	  case 1:
+	    settings.CAN0Speed = 20000;
+	    break;
+	  case 2:
+	    settings.CAN0Speed = 50000;
+	    break;	    
+	  case 3:
+	    settings.CAN0Speed = 100000;
+	    break;	    
+	  case 4:
+	    settings.CAN0Speed = 125000;
+	    break;	    
+	  case 5:
+	    settings.CAN0Speed = 250000;
+	    break;	    
+	  case 6:
+	    settings.CAN0Speed = 500000;
+	    break;	    
+	  case 7:
+	    settings.CAN0Speed = 800000;
+	    break;	    
+	  case 8:
+	    settings.CAN0Speed = 1000000;
+	    break;	    
+	}
+      case 's': //setup canbus baud via register writes (we can't really do that...)
+	//settings.CAN0Speed = 250000;
+	break;
+      case 'r': //send a standard RTR frame (don't really... that's so deprecated its not even funny)
+	break;
+      case 'R': //send extended RTR frame (NO! DON'T DO IT!)
+	break;
+      case 'X': //Set autopoll off/on
+	if (cmdBuffer[1] == '1') SysSettings.lawicelAutoPoll = true;
+	else SysSettings.lawicelAutoPoll = false;	
+	break;
+      case 'W': //Dual or single filter mode
+	break; //don't actually support this mode
+      case 'm': //set acceptance mask - these things seem to be odd and aren't actually implemented yet
+      case 'M': //set acceptance code 
+	break; //don't do anything here yet either
+      case 'U': //set uart speed. We just ignore this. You can't set a baud rate on a USB CDC port
+	break; //also no action here
+      case 'Z': //Turn timestamp off/on
+	if (cmdBuffer[1] == '1') SysSettings.lawicelTimestamping = true;
+	else SysSettings.lawicelTimestamping =  false;
+	break;
+      case 'Q': //turn auto start up on/off - probably don't need to actually implement this at the moment.	
+	break; //no action yet or maybe ever
+    }
+    SerialUSB.write(13);
 }
 
 /*For simplicity the configuration setting code uses four characters for each configuration choice. This makes things easier for
@@ -353,6 +454,9 @@ void SerialConsole::handleConfigCmd() {
 	}
 }
 
+/*
+LAWICEL single letter commands are now mixed in with the other commands here.
+*/
 void SerialConsole::handleShortCmd() {
 	uint8_t val;
 
@@ -381,8 +485,41 @@ void SerialConsole::handleShortCmd() {
 	case 'S': //stop logging canbus to file
 		SysSettings.logToFile = false;
 		break;
-	case 'X':
-		setup(); //this is probably a bad idea. Do not do this while connected to anything you care about - only for debugging in safety!
+	case 'O': //LAWICEL open canbus port (first one only because LAWICEL has no concept of dual canbus
+		//Can0.begin(settings.CAN0Speed, SysSettings.CAN1EnablePin);
+		//Can0.enable();
+		SerialUSB.write(13); //send CR to mean "ok"
+		SysSettings.lawicelMode = true;
+		break;
+	case 'C': //LAWICEL close canbus port (First one)
+		Can0.disable();
+		SerialUSB.write(13); //send CR to mean "ok"
+		break;
+	case 'L': //LAWICEL open canbus port in listen only mode
+		Can0.begin(settings.CAN0Speed, SysSettings.CAN1EnablePin); //this is NOT really listen only mode but it isn't supported yet so for now...
+		Can0.enable();		
+		SerialUSB.write(13); //send CR to mean "ok"
+		SysSettings.lawicelMode = true;
+		break;
+	case 'P': //LAWICEL - poll for one waiting frame. Or, just CR if no frames
+		if (Can0.available()) SysSettings.lawicelPollCounter = 1;
+		else SerialUSB.write(13); //no waiting frames
+		break;
+	case 'A': //LAWICEL - poll for all waiting frames - CR if no frames
+		SysSettings.lawicelPollCounter = Can0.available();
+		if (SysSettings.lawicelPollCounter == 0) SerialUSB.write(13);
+		break;
+	case 'F': //LAWICEL - read status bits 
+		SerialUSB.print("F00"); //bit 0 = RX Fifo Full, 1 = TX Fifo Full, 2 = Error warning, 3 = Data overrun, 5= Error passive, 6 = Arb. Lost, 7 = Bus Error
+		SerialUSB.write(13);
+		break;
+	case 'V': //LAWICEL - get version number
+		SerialUSB.print("V1013\n");
+		SysSettings.lawicelMode = true;
+		break;
+	case 'N': //LAWICEL - get serial number
+		SerialUSB.print("ND00D\n");
+		SysSettings.lawicelMode = true;
 		break;
 	}
 }
@@ -461,5 +598,22 @@ bool SerialConsole::handleCANSend(CANRaw &port, char *inputString)
 	SysSettings.txToggle = !SysSettings.txToggle;
 	setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
 	return true;
+}
+
+unsigned int SerialConsole::parseHexCharacter(char chr)
+{
+	unsigned int result = 0;
+	if (chr >= '0' && chr <= '9') result = chr - '0';
+	else if (chr >= 'A' && chr <= 'F') result = 10 + chr - 'A';
+	else if (chr >= 'a' && chr <= 'f') result = 10 + chr - 'a';
+	
+	return result;
+}
+
+unsigned int SerialConsole::parseHexString(char *str, int length)
+{
+    unsigned int result = 0;
+    for (int i = 0; i < length; i++) result += parseHexCharacter(str[i]) << (4 * (length - i - 1));
+    return result;
 }
 
