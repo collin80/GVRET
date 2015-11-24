@@ -8,8 +8,8 @@ A project turn the GEVCU hardware into a specialized reverse engineering tool.
 The project now builds in the Arduino IDE. So, use it to compile, send the firmware to the Arduino, and monitor serial. It all works very nicely.
 
 You will need the following to have any hope of compiling and running the firmware:
-- The GEVCU hardware (version 4 hardware or newer) or CANDue hardware
-- Arduino IDE 1.5.4 (use other versions at your own risk)
+- The GEVCU hardware (version 4 hardware or newer), CANDue (1.1 or 2.0), or EVTVDue
+- Arduino IDE 1.5.4 or higher (tested all of the way up to 1.6.6)
 - due_can - In my repos
 - due_wire - once again, in my repos
 - SdFat - I have also forked this into my repos
@@ -21,7 +21,7 @@ The canbus is supposed to be terminated on both ends of the bus. This should not
 
 This software is MIT licensed:
 
-Copyright (c) 2014 Collin Kidder, Michael Neuweiler, Charles Galpin
+Copyright (c) 2014-2015 Collin Kidder, Michael Neuweiler, Charles Galpin
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
