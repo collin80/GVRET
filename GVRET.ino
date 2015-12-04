@@ -737,6 +737,7 @@ void loop()
 				   if (build_int > 1000000) build_int = 1000000;
 				   Can0.enable();
 				   Can0.begin(build_int, SysSettings.CAN0EnablePin);
+				   Can0.set_baudrate(build_int);
 				   settings.CAN0Speed = build_int;
 				   settings.CAN0_Enabled = true;
 			   }
@@ -764,6 +765,8 @@ void loop()
 				   Can1.begin(build_int, SysSettings.CAN1EnablePin);
 				   if (settings.singleWireMode) setSWCANEnabled();
 				   else setSWCANSleep();
+				   Can1.set_baudrate(build_int);
+
 				   settings.CAN1Speed = build_int;
 				   settings.CAN1_Enabled = true;
 			   }
