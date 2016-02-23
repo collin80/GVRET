@@ -523,7 +523,7 @@ void loop()
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
-			fwReceiver->gotFrame(&incoming);
+			//fwReceiver->gotFrame(&incoming);
 		}
 
 		if (Can1.available()) {
@@ -535,7 +535,7 @@ void loop()
 		if (SysSettings.lawicelPollCounter > 0) SysSettings.lawicelPollCounter--;
 	//}
 
-  if ((lastFlushMicros + SER_BUFF_FLUSH_INTERVAL) < micros())
+  if (micros() - lastFlushMicros > SER_BUFF_FLUSH_INTERVAL)
   {
 	if (serialBufferLength > 0)
 	{
