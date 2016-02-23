@@ -69,6 +69,7 @@ void SerialConsole::printMenu() {
 
 	Logger::console("CAN0EN=%i - Enable/Disable CAN0 (0 = Disable, 1 = Enable)", settings.CAN0_Enabled);
 	Logger::console("CAN0SPEED=%i - Set speed of CAN0 in baud (125000, 250000, etc)", settings.CAN0Speed);
+	Logger::console("CAN0LISTENONLY=%i - Enable/Disable Listen Only Mode (0 = Dis, 1 = En)", settings.CAN0ListenOnly);
 	for (int i = 0; i < 8; i++) {
 		sprintf(buff, "CAN0FILTER%i=0x%%x,0x%%x,%%i,%%i (ID, Mask, Extended, Enabled)", i);
 		Logger::console(buff, settings.CAN0Filters[i].id, settings.CAN0Filters[i].mask,
@@ -78,6 +79,7 @@ void SerialConsole::printMenu() {
 
 	Logger::console("CAN1EN=%i - Enable/Disable CAN1 (0 = Disable, 1 = Enable)", settings.CAN1_Enabled);
 	Logger::console("CAN1SPEED=%i - Set speed of CAN1 in baud (125000, 250000, etc)", settings.CAN1Speed);
+	Logger::console("CAN1LISTENONLY=%i - Enable/Disable Listen Only Mode (0 = Dis, 1 = En)", settings.CAN1ListenOnly);
 	for (int i = 0; i < 8; i++) {
 		sprintf(buff, "CAN1FILTER%i=0x%%x,0x%%x,%%i,%%i (ID, Mask, Extended, Enabled)", i);
 		Logger::console(buff, settings.CAN1Filters[i].id, settings.CAN1Filters[i].mask,
@@ -296,6 +298,39 @@ void SerialConsole::handleConfigCmd() {
 			writeEEPROM = true;
 		}
 		else Logger::console("Invalid baud rate! Enter a value 1 - 1000000");
+
+	} else if (cmdString == String("CAN0LISTENONLY")) {
+		if (newValue >= 0 && newValue <= 1)
+		{
+			Logger::console("Setting CAN0 Listen Only to %i", newValue);
+			settings.CAN0ListenOnly = newValue;
+			if (settings.CAN0ListenOnly)
+			{
+				Can0.enable_autobaud_listen_mode();
+			}
+			else
+			{
+				Can0.disable_autobaud_listen_mode();
+			}
+			writeEEPROM = true;
+		}
+		else Logger::console("Invalid setting! Enter a value 0 - 1");
+	} else if (cmdString == String("CAN1LISTENONLY")) {
+		if (newValue >= 0 && newValue <= 1)
+		{
+			Logger::console("Setting CAN1 Listen Only to %i", newValue);
+			settings.CAN1ListenOnly = newValue;
+			if (settings.CAN1ListenOnly)
+			{
+				Can1.enable_autobaud_listen_mode();
+			}
+			else
+			{
+				Can1.disable_autobaud_listen_mode();
+			}
+			writeEEPROM = true;
+		}
+		else Logger::console("Invalid setting! Enter a value 0 - 1");
 	} else if (cmdString == String("CAN0FILTER0")) { //someone should kick me in the face for this laziness... FIX THIS!
 		handleFilterSet(0, 0, newString);
 	}

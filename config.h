@@ -75,6 +75,8 @@ struct EEPROMSettings { //222 bytes right now. Must stay under 256
 	uint16_t valid; //stores a validity token to make sure EEPROM is not corrupt
 
 	uint8_t singleWireMode; //anything other than 1 means normal mode. 1 means use single wire mode where we strobe the enable line to go into HV mode
+	boolean CAN0ListenOnly; //if true we don't allow any messing with the bus but rather just passively monitor.
+	boolean CAN1ListenOnly;
 };
 
 struct SystemSettings 
@@ -103,10 +105,21 @@ struct SystemSettings
 extern EEPROMSettings settings;
 extern SystemSettings SysSettings;
 
-#define	BUF_SIZE	8192 //buffer size for SDCard - Sending canbus data to the card. Still allocated even for GEVCU but unused in that case
+//buffer size for SDCard - Sending canbus data to the card. Still allocated even for GEVCU but unused in that case
+//This is a large buffer but the sketch may as well use up a lot of RAM. It's there.
+//This value is picked up by the SD card library and not directly used in the GVRET code.
+#define	BUF_SIZE	8192 
 
-#define CFG_BUILD_NUM	331
-#define CFG_VERSION "GVRET alpha 2015-12-03"
+//size to use for buffering writes to the USB bulk endpoint
+//This is, however, directly used.
+#define SER_BUFF_SIZE		4096
+
+//maximum number of microseconds between flushes to the USB port. 
+//The host should be polling every 1ms or so and so this time should be a small multiple of that
+#define SER_BUFF_FLUSH_INTERVAL	2000   
+
+#define CFG_BUILD_NUM	332
+#define CFG_VERSION "GVRET alpha 2016-02-21"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
 
@@ -125,13 +138,6 @@ extern SystemSettings SysSettings;
 #define GEVCU_SDCARD_SEL		10
 #define GEVCU_SWCAN_MODE0		255
 #define GEVCU_SWCAN_MODE1		255
-
-
-/*
- * SERIAL CONFIGURATION
- */
-#define CFG_SERIAL_SPEED 115200
-//#define SerialUSB Serial // re-route serial-usb output to programming port ;) comment if output should go to std usb
 
 #define BLINK_LED          73 //13 is L, 73 is TX, 72 is RX
 

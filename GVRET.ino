@@ -47,6 +47,10 @@ use the settings you set up without any external input.
 
 byte i = 0;
 
+byte serialBuffer[SER_BUFF_SIZE];
+int serialBufferLength = 0; //not creating a ring buffer. The buffer should be large enough to never overflow
+uint32_t lastFlushMicros = 0;
+
 EEPROMSettings settings;
 SystemSettings SysSettings;
 FirmwareReceiver *fwReceiver;
@@ -103,6 +107,8 @@ void loadSettings()
 		settings.sysType = 0; //CANDUE as default
 		settings.valid = 0; //not used right now
 		settings.singleWireMode = 0; //normal mode
+		settings.CAN0ListenOnly = false;
+		settings.CAN1ListenOnly = false;
 		EEPROM.write(EEPROM_PAGE, settings);
 	}
 	else {
@@ -268,6 +274,24 @@ void setup()
 		}
 	}
 
+	if (settings.CAN0ListenOnly)
+	{
+		Can0.enable_autobaud_listen_mode();
+	}
+	else
+	{
+		Can0.disable_autobaud_listen_mode();
+	}
+
+	if (settings.CAN1ListenOnly)
+	{
+		Can1.enable_autobaud_listen_mode();
+	}
+	else
+	{
+		Can1.disable_autobaud_listen_mode();
+	}
+
 	fwReceiver = new FirmwareReceiver(&Can0, 0x1FDA4C36, 0x100);
 	
 	SysSettings.lawicelMode = false;
@@ -351,24 +375,25 @@ void sendFrameToUSB(CAN_FRAME &frame, int whichBus)
 	{
 		if (settings.useBinarySerialComm) {
 			if (frame.extended) frame.id |= 1 << 31;
-			buff[0] = 0xF1;
-			buff[1] = 0; //0 = canbus frame sending
-			buff[2] = (uint8_t)(now & 0xFF);
-			buff[3] = (uint8_t)(now >> 8);
-			buff[4] = (uint8_t)(now >> 16);
-			buff[5] = (uint8_t)(now >> 24);
-			buff[6] = (uint8_t)(frame.id & 0xFF);
-			buff[7] = (uint8_t)(frame.id >> 8);
-			buff[8] = (uint8_t)(frame.id >> 16);
-			buff[9] = (uint8_t)(frame.id >> 24);
-			buff[10] = frame.length + (uint8_t)(whichBus << 4);
+			serialBuffer[serialBufferLength++] = 0xF1;
+			serialBuffer[serialBufferLength++] = 0; //0 = canbus frame sending
+			serialBuffer[serialBufferLength++] = (uint8_t)(now & 0xFF);
+			serialBuffer[serialBufferLength++] = (uint8_t)(now >> 8);
+			serialBuffer[serialBufferLength++] = (uint8_t)(now >> 16);
+			serialBuffer[serialBufferLength++] = (uint8_t)(now >> 24);
+			serialBuffer[serialBufferLength++] = (uint8_t)(frame.id & 0xFF);
+			serialBuffer[serialBufferLength++] = (uint8_t)(frame.id >> 8);
+			serialBuffer[serialBufferLength++] = (uint8_t)(frame.id >> 16);
+			serialBuffer[serialBufferLength++] = (uint8_t)(frame.id >> 24);
+			serialBuffer[serialBufferLength++] = frame.length + (uint8_t)(whichBus << 4);
 			for (int c = 0; c < frame.length; c++)
 			{
-				buff[11 + c] = frame.data.bytes[c];
+				serialBuffer[serialBufferLength++] = frame.data.bytes[c];
 			}
-			temp = checksumCalc(buff, 11 + frame.length);
-			buff[11 + frame.length] = temp;
-			SerialUSB.write(buff, 12 + frame.length);
+			//temp = checksumCalc(buff, 11 + frame.length);
+			temp = 0;
+			serialBuffer[serialBufferLength++] = temp;
+			//SerialUSB.write(buff, 12 + frame.length);
 		}
 		else 
 		{
@@ -510,8 +535,18 @@ void loop()
 		if (SysSettings.lawicelPollCounter > 0) SysSettings.lawicelPollCounter--;
 	//}
 
+  if ((lastFlushMicros + SER_BUFF_FLUSH_INTERVAL) < micros())
+  {
+	if (serialBufferLength > 0)
+	{
+		SerialUSB.write(serialBuffer, serialBufferLength);
+        	serialBufferLength = 0;
+		lastFlushMicros = micros();
+	}
+  }
+
   serialCnt = 0;
-  while (isConnected && (SerialUSB.available() > 0) && serialCnt < 64) {
+  while (isConnected && (SerialUSB.available() > 0) && serialCnt < 128) {
 	serialCnt++;
 	in_byte = SerialUSB.read();
 	   switch (state) {
