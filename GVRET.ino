@@ -422,7 +422,7 @@ void sendFrameToFile(CAN_FRAME &frame, int whichBus)
 	uint32_t timestamp;
 	if (settings.fileOutputType == BINARYFILE) {
 		if (frame.extended) frame.id |= 1 << 31;
-		timestamp = millis();
+		timestamp = micros();
 		buff[0] = (uint8_t)(timestamp & 0xFF);
 		buff[1] = (uint8_t)(timestamp >> 8);
 		buff[2] = (uint8_t)(timestamp >> 16);
@@ -498,6 +498,7 @@ void loop()
 	static bool markToggle = false;
 	bool isConnected = false;
 	int serialCnt;
+	uint32_t now = micros();
 
 	/*if (SerialUSB)*/ isConnected = true;
 
@@ -572,6 +573,13 @@ void loop()
 		   case 1:
 			   state = TIME_SYNC;
 			   step = 0;
+			   buff[0] = 0xF1;
+			   buff[1] = 1; //time sync
+			   buff[2] = (uint8_t)(now & 0xFF);
+			   buff[3] = (uint8_t)(now >> 8);
+			   buff[4] = (uint8_t)(now >> 16);
+			   buff[5] = (uint8_t)(now >> 24);
+			   SerialUSB.write(buff, 6);
 			   break;
 		   case 2:
 			   //immediately return the data for digital inputs
