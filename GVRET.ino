@@ -240,6 +240,14 @@ void setup()
 
 	if (settings.CAN0_Enabled)
 	{
+		if (settings.CAN0ListenOnly)
+		{
+			Can0.enable_autobaud_listen_mode();
+		}
+		else
+		{
+			Can0.disable_autobaud_listen_mode();
+		}
 		Can0.enable();
 		Can0.begin(settings.CAN0Speed, SysSettings.CAN0EnablePin);
 	}
@@ -247,6 +255,14 @@ void setup()
 
 	if (settings.CAN1_Enabled)
 	{
+		if (settings.CAN1ListenOnly)
+		{
+			Can1.enable_autobaud_listen_mode();
+		}
+		else
+		{
+			Can1.disable_autobaud_listen_mode();
+		}
 		Can1.enable();
 		Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
 		if (settings.singleWireMode)
@@ -272,24 +288,6 @@ void setup()
 			Can1.setRXFilter(i, settings.CAN1Filters[i].id,
 				settings.CAN1Filters[i].mask, settings.CAN1Filters[i].extended);
 		}
-	}
-
-	if (settings.CAN0ListenOnly)
-	{
-		Can0.enable_autobaud_listen_mode();
-	}
-	else
-	{
-		Can0.disable_autobaud_listen_mode();
-	}
-
-	if (settings.CAN1ListenOnly)
-	{
-		Can1.enable_autobaud_listen_mode();
-	}
-	else
-	{
-		Can1.disable_autobaud_listen_mode();
 	}
 
 	fwReceiver = new FirmwareReceiver(&Can0, 0x1FDA4C36, 0x100);
@@ -618,12 +616,12 @@ void loop()
 			   //immediately return data on canbus params
 			   buff[0] = 0xF1;
 			   buff[1] = 6;
-			   buff[2] = settings.CAN0_Enabled;
+			   buff[2] = settings.CAN0_Enabled + ((unsigned char)settings.CAN0ListenOnly << 4);
 			   buff[3] = settings.CAN0Speed;
 			   buff[4] = settings.CAN0Speed >> 8;
 			   buff[5] = settings.CAN0Speed >> 16;
 			   buff[6] = settings.CAN0Speed >> 24;
-			   buff[7] = settings.CAN1_Enabled;
+			   buff[7] = settings.CAN1_Enabled + ((unsigned char)settings.CAN1ListenOnly << 4);
 			   buff[8] = settings.CAN1Speed;
 			   buff[9] = settings.CAN1Speed >> 8;
 			   buff[10] = settings.CAN1Speed >> 16;

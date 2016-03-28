@@ -7,7 +7,7 @@
  * Note: Make sure with all pin defintions of your hardware that each pin number is
  *       only defined once.
 
- Copyright (c) 2013 Collin Kidder, Michael Neuweiler, Charles Galpin
+ Copyright (c) 2013-2016 Collin Kidder, Michael Neuweiler, Charles Galpin
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -50,7 +50,7 @@ enum FILEOUTPUTTYPE
 	CRTD = 3
 };
 
-struct EEPROMSettings { //222 bytes right now. Must stay under 256
+struct EEPROMSettings { //Must stay under 256 - currently somewhere around 222
 	uint8_t version;
 	
 	uint32_t CAN0Speed;
@@ -118,8 +118,8 @@ extern SystemSettings SysSettings;
 //The host should be polling every 1ms or so and so this time should be a small multiple of that
 #define SER_BUFF_FLUSH_INTERVAL	2000   
 
-#define CFG_BUILD_NUM	332
-#define CFG_VERSION "GVRET alpha 2016-02-21"
+#define CFG_BUILD_NUM	334
+#define CFG_VERSION "GVRET alpha 2016-03-28"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
 
