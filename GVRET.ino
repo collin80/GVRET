@@ -629,7 +629,7 @@ void loop()
 			   buff[4] = settings.CAN0Speed >> 8;
 			   buff[5] = settings.CAN0Speed >> 16;
 			   buff[6] = settings.CAN0Speed >> 24;
-			   buff[7] = settings.CAN1_Enabled + ((unsigned char)settings.CAN1ListenOnly << 4);
+			   buff[7] = settings.CAN1_Enabled + ((unsigned char)settings.CAN1ListenOnly << 4) + (unsigned char)settings.singleWireMode << 6;
 			   buff[8] = settings.CAN1Speed;
 			   buff[9] = settings.CAN1Speed >> 8;
 			   buff[10] = settings.CAN1Speed >> 16;
@@ -775,12 +775,39 @@ void loop()
 			   build_int |= in_byte << 24;
 			   if (build_int > 0) 
 			   {
-				   if (build_int > 1000000) build_int = 1000000;
-				   Can0.enable();
+				   if (build_int & 0x80000000) //signals that enabled and listen only status are also being passed
+				   {
+					   if (build_int & 0x40000000)
+					   {
+						   settings.CAN0_Enabled = true;
+						   Can0.enable();
+					   }
+					   else
+					   {
+						   settings.CAN0_Enabled = false;
+						   Can0.disable();
+					   }
+					   if (build_int & 0x20000000)
+					   {
+						   settings.CAN0ListenOnly = true;
+						   Can0.enable_autobaud_listen_mode();
+					   }
+					   else
+					   {
+						   settings.CAN0ListenOnly = false;
+						   Can0.disable_autobaud_listen_mode();
+					   }
+				   }
+				   else
+				   {
+					   Can0.enable(); //if not using extended status mode then just default to enabling - this was old behavior
+					   settings.CAN0_Enabled = true;
+				   }
+				   build_int = build_int & 0xFFFFF;
+				   if (build_int > 1000000) build_int = 1000000;				   
 				   Can0.begin(build_int, SysSettings.CAN0EnablePin);
 				   //Can0.set_baudrate(build_int);
-				   settings.CAN0Speed = build_int;
-				   settings.CAN0_Enabled = true;
+				   settings.CAN0Speed = build_int;				   
 			   }
 			   else //disable first canbus
 			   {
@@ -801,15 +828,42 @@ void loop()
 			   build_int |= in_byte << 24;
 			   if (build_int > 0) 
 			   {
+				   if (build_int & 0x80000000) //signals that enabled and listen only status are also being passed
+				   {
+					   if (build_int & 0x40000000)
+					   {
+						   settings.CAN1_Enabled = true;
+						   Can1.enable();
+					   }
+					   else
+					   {
+						   settings.CAN1_Enabled = false;
+						   Can1.disable();
+					   }
+					   if (build_int & 0x20000000)
+					   {
+						   settings.CAN1ListenOnly = true;
+						   Can1.enable_autobaud_listen_mode();
+					   }
+					   else
+					   {
+						   settings.CAN1ListenOnly = false;
+						   Can1.disable_autobaud_listen_mode();
+					   }
+				   }
+				   else
+				   {
+					   Can1.enable(); //if not using extended status mode then just default to enabling - this was old behavior
+					   settings.CAN1_Enabled = true;
+				   }
+				   build_int = build_int & 0xFFFFF;
 				   if (build_int > 1000000) build_int = 1000000;
-				   Can1.enable();
 				   Can1.begin(build_int, SysSettings.CAN1EnablePin);
 				   if (settings.singleWireMode) setSWCANEnabled();
 				   else setSWCANSleep();
 				   //Can1.set_baudrate(build_int);
 
-				   settings.CAN1Speed = build_int;
-				   settings.CAN1_Enabled = true;
+				   settings.CAN1Speed = build_int;				   
 			   }
 			   else //disable second canbus
 			   {
