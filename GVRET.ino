@@ -490,7 +490,7 @@ void loop()
 	static byte buff[20];
 	static int step = 0;
 	static STATE state = IDLE;
-	static int build_int;
+	static uint32_t build_int;
 	uint8_t temp8;
 	uint16_t temp16;
 	static bool markToggle = false;
