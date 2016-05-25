@@ -519,6 +519,7 @@ void loop()
 	//{
 		if (Can0.available()) {
 			Can0.read(incoming);
+			Can1.sendFrame(incoming);
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
@@ -527,6 +528,7 @@ void loop()
 
 		if (Can1.available()) {
 			Can1.read(incoming); 
+			Can0.sendFrame(incoming);
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 1);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
