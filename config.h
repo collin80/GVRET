@@ -118,7 +118,7 @@ extern SystemSettings SysSettings;
 //The host should be polling every 1ms or so and so this time should be a small multiple of that
 #define SER_BUFF_FLUSH_INTERVAL	2000   
 
-#define CFG_BUILD_NUM	334
+#define CFG_BUILD_NUM	332
 #define CFG_VERSION "GVRET alpha 2016-03-28"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
