@@ -130,6 +130,8 @@ extern SystemSettings SysSettings;
 #define CANDUE_SDCARD_SEL		10
 #define CANDUE_SWCAN_MODE0		46
 #define CANDUE_SWCAN_MODE1		44
+#define ENABLE_PASS_0TO1_PIN            11
+#define ENABLE_PASS_1TO0_PIN            12
 
 #define GEVCU_EEPROM_WP_PIN		19
 #define GEVCU_CAN0_EN_PIN		255  //GEVCU has a different transceiver with no enable pin

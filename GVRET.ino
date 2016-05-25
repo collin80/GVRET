@@ -211,6 +211,8 @@ void setup()
 {
 	//delay(5000); //just for testing. Don't use in production
     pinMode(BLINK_LED, OUTPUT);
+    digitalWrite(ENABLE_PASS_0TO1_PIN, HIGH); // enable pull-up resistor
+    digitalWrite(ENABLE_PASS_1TO0_PIN, HIGH); // enable pull-up resistor
     digitalWrite(BLINK_LED, LOW);
 
 	Wire.begin();
@@ -519,7 +521,7 @@ void loop()
 	//{
 		if (Can0.available()) {
 			Can0.read(incoming);
-			Can1.sendFrame(incoming);
+			if (!digitalRead(ENABLE_PASS_0TO1_PIN)) Can1.sendFrame(incoming); // if pin is shorted to GND
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
@@ -528,7 +530,7 @@ void loop()
 
 		if (Can1.available()) {
 			Can1.read(incoming); 
-			Can0.sendFrame(incoming);
+			if (!digitalRead(ENABLE_PASS_1TO0_PIN)) Can0.sendFrame(incoming); // if pin is shorted to GND
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 1);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
