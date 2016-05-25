@@ -118,7 +118,7 @@ extern SystemSettings SysSettings;
 //The host should be polling every 1ms or so and so this time should be a small multiple of that
 #define SER_BUFF_FLUSH_INTERVAL	2000   
 
-#define CFG_BUILD_NUM	334
+#define CFG_BUILD_NUM	332
 #define CFG_VERSION "GVRET alpha 2016-03-28"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
@@ -130,6 +130,8 @@ extern SystemSettings SysSettings;
 #define CANDUE_SDCARD_SEL		10
 #define CANDUE_SWCAN_MODE0		46
 #define CANDUE_SWCAN_MODE1		44
+#define ENABLE_PASS_0TO1_PIN            11
+#define ENABLE_PASS_1TO0_PIN            12
 
 #define GEVCU_EEPROM_WP_PIN		19
 #define GEVCU_CAN0_EN_PIN		255  //GEVCU has a different transceiver with no enable pin
