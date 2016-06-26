@@ -34,7 +34,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <SdFatUtil.h>
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
-#include <DueFlashStorage.h>
 #include <FirmwareReceiver.h>
 #include "SerialConsole.h"
 
@@ -53,7 +52,6 @@ uint32_t lastFlushMicros = 0;
 
 EEPROMSettings settings;
 SystemSettings SysSettings;
-FirmwareReceiver *fwReceiver;
 
 // file system on sdcard
 SdFat sd;
@@ -71,9 +69,9 @@ void loadSettings()
 		Logger::console("Resetting to factory defaults");
 		settings.version = EEPROM_VER;
 		settings.appendFile = false;
-		settings.CAN0Speed = 250000;
+		settings.CAN0Speed = 500000;
 		settings.CAN0_Enabled = false;
-		settings.CAN1Speed = 250000;
+		settings.CAN1Speed = 500000;
 		settings.CAN1_Enabled = false;
 		sprintf((char *)settings.fileNameBase, "CANBUS");
 		sprintf((char *)settings.fileNameExt, "TXT");
@@ -213,6 +211,7 @@ void setup()
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
+  Serial.begin(115200);
 	Wire.begin();
 	EEPROM.setWPPin(18); // a guess...
 
@@ -289,8 +288,6 @@ void setup()
 				settings.CAN1Filters[i].mask, settings.CAN1Filters[i].extended);
 		}
 	}
-
-	fwReceiver = new FirmwareReceiver(&Can0, 0x1FDA4C36, 0x100);
 	
 	SysSettings.lawicelMode = false;
 	SysSettings.lawicelAutoPoll = false;
@@ -522,7 +519,7 @@ void loop()
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
-			//fwReceiver->gotFrame(&incoming);
+			fwGotFrame(&incoming);
 		}
 
 		if (Can1.available()) {
