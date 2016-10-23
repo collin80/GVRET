@@ -52,6 +52,7 @@ uint32_t lastFlushMicros = 0;
 
 EEPROMSettings settings;
 SystemSettings SysSettings;
+DigitalCANToggleSettings digToggleSettings;
 
 // file system on sdcard
 SdFat sd;
@@ -112,6 +113,23 @@ void loadSettings()
 	else {
 		Logger::console("Using stored values from EEPROM");
 	}
+	
+	EEPROM.read(EEPROM_PAGE + 1, digToggleSettings);
+	if (digToggleSettings.mode == 255)
+    {
+        Logger::console("Resetting digital toggling system to defaults");
+        digToggleSettings.enabled = false;
+        digToggleSettings.length = 0;
+        digToggleSettings.mode = 0;
+        digToggleSettings.pin = 1;
+        digToggleSettings.rxTxID = 0x700;
+        for (int c=0 ; c<8 ; c++) digToggleSettings.payload[c] = 0;
+        EEPROM.write(EEPROM_PAGE + 1, digToggleSettings);        
+    }
+    else
+    {
+        Logger::console("Using stored values for digital toggling system");
+    }
 
 	Logger::setLoglevel((Logger::LogLevel)settings.logLevel);
 

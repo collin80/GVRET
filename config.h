@@ -79,6 +79,27 @@ struct EEPROMSettings { //Must stay under 256 - currently somewhere around 222
 	boolean CAN1ListenOnly;
 };
 
+struct DigitalCANToggleSettings //16 bytes
+{
+    /*
+     * 0 = Read pin and send message when it changes state
+     * 1 = Set digital I/O on CAN Rx (Add 127
+     * If the value is 0 or 1 then the default state of the pin is assumed to be LOW
+     * If value has 128 added then default state is assumed to be HIGH
+     * 
+     * So, a value of 0 means to read the pin and send a message when it goes HIGH whereas a value of 128 would
+     * read the pin and send a message when it goes LOW.
+     * 
+     * Mostly people don't have to worry about any of this because the serial console takes care of these details for you.
+    */    
+    uint8_t mode; 
+    uint8_t pin; //which pin we'll be using to either read a digital input or send one
+    uint32_t rxTxID; //which ID to use for reception and trasmission
+    uint8_t payload[8];
+    uint8_t length; //how many bytes to use for the message (TX) or how many to validate (RX)
+    boolean enabled; //true or false, is this special mode enabled or not?    
+};
+
 struct SystemSettings 
 {
 	uint8_t eepromWPPin;
@@ -104,6 +125,7 @@ struct SystemSettings
 
 extern EEPROMSettings settings;
 extern SystemSettings SysSettings;
+extern DigitalCANToggleSettings digToggleSettings;
 
 //buffer size for SDCard - Sending canbus data to the card. Still allocated even for GEVCU but unused in that case
 //This is a large buffer but the sketch may as well use up a lot of RAM. It's there.
@@ -119,7 +141,7 @@ extern SystemSettings SysSettings;
 #define SER_BUFF_FLUSH_INTERVAL	2000   
 
 #define CFG_BUILD_NUM	334
-#define CFG_VERSION "GVRET alpha 2016-03-28"
+#define CFG_VERSION "GVRET alpha 2016-10-23"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
 

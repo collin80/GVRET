@@ -100,6 +100,17 @@ void SerialConsole::printMenu() {
 	Logger::console("FILENUM=%i - Set incrementing number for filename", settings.fileNum);
 	Logger::console("FILEAPPEND=%i - Append to file (no numbers) or use incrementing numbers after basename (0=Incrementing Numbers, 1=Append)", settings.appendFile);
 	Logger::console("FILEAUTO=%i - Automatically start logging at startup (0=No, 1 = Yes)", settings.autoStartLogging);
+    SerialUSB.println();
+    
+    Logger::console("DIGTOGEN=%i - Enable digital toggling system (0 = Dis, 1 = En)", digToggleSettings.enabled);
+    Logger::console("DIGTOGMODE=%i - Set digital toggle mode (0 = Read pin, send CAN, 1 = Receive CAN, set pin)", digToggleSettings.mode & 1);
+    Logger::console("DIGTOGLEVEL=%i - Set default level of digital pin (0 = LOW, 1 = HIGH)", digToggleSettings.mode >> 7);
+    Logger::console("DIGTOGPIN=%i - Pin to use for digital toggling system (Use Arduino Digital Pin Number)", digToggleSettings.pin);
+    Logger::console("DIGTOGID=%X - CAN ID to use for Rx or Tx", digToggleSettings.rxTxID);
+    Logger::console("DIGTOGLEN=%i - Length of frame to send (Tx) or validate (Rx)", digToggleSettings.length);
+    Logger::console("DIGTOGPAYLOAD=%X,%X,%X,%X,%X,%X,%X,%X - Payload to send or validate against (comma separated list)", digToggleSettings.payload[0],
+                    digToggleSettings.payload[1], digToggleSettings.payload[2], digToggleSettings.payload[3], digToggleSettings.payload[4],
+                    digToggleSettings.payload[5], digToggleSettings.payload[6], digToggleSettings.payload[7]);
 }
 
 /*	There is a help menu (press H or h or ?)
@@ -238,6 +249,8 @@ void SerialConsole::handleConfigCmd() {
 	int newValue;
 	char *newString;
 	bool writeEEPROM = false;
+    bool writeDigEE = false;
+    char *dataTok;
 
 	//Logger::debug("Cmd size: %i", ptrBuffer);
 	if (ptrBuffer < 6)
@@ -449,7 +462,75 @@ void SerialConsole::handleConfigCmd() {
 			writeEEPROM = true;
 			Logger::console("System type updated. Power cycle to apply.");
 		}
-		else Logger::console("Invalid system type. Please enter a value of 0 for CanDue or 1 for GEVCU");       
+		else Logger::console("Invalid system type. Please enter a value of 0 for CanDue or 1 for GEVCU");
+    } else if (cmdString == String("DIGTOGEN")) {
+        if (newValue >= 0 && newValue <= 1)
+        {
+            Logger::console("Setting Digital Toggle System Enable to %i", newValue);
+            digToggleSettings.enabled = newValue;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid enable value. Must be either 0 or 1");
+    } else if (cmdString == String("DIGTOGMODE")) {
+        if (newValue >= 0 && newValue <= 1)
+        {
+            Logger::console("Setting Digital Toggle Mode to %i", newValue);
+            if (newValue == 0) digToggleSettings.mode &= ~1;
+            if (newValue == 1) digToggleSettings.mode |= 1;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid mode. Must be either 0 or 1");
+    } else if (cmdString == String("DIGTOGLEVEL")) {
+        if (newValue >= 0 && newValue <= 1)
+        {
+            Logger::console("Setting Digital Toggle Starting Level to %i", newValue);
+            if (newValue == 0) digToggleSettings.mode &= ~0x80;
+            if (newValue == 1) digToggleSettings.mode |= 0x80;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid default level. Must be either 0 or 1");
+    } else if (cmdString == String("DIGTOGPIN")) {
+        if (newValue >= 0 && newValue <= 77)
+        {
+            Logger::console("Setting Digital Toggle Pin to %i", newValue);
+            digToggleSettings.pin = newValue;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid pin. Must be between 0 and 77");
+    } else if (cmdString == String("DIGTOGID")) {
+        if (newValue >= 0 && newValue < (1 << 30))
+        {
+            Logger::console("Setting Digital Toggle CAN ID to %X", newValue);
+            digToggleSettings.rxTxID = newValue;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid CAN ID. Must be either an 11 or 29 bit ID");
+    } else if (cmdString == String("DIGTOGLEN")) {
+        if (newValue >= 0 && newValue <= 8)
+        {
+            Logger::console("Setting Digital Toggle Frame Length to %i", newValue);
+            digToggleSettings.length = newValue;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid length. Must be between 0 and 8");
+    } else if (cmdString == String("DIGTOGPAYLOAD")) {
+        dataTok = strtok(newString, ",");
+        if (dataTok) 
+        {
+            digToggleSettings.payload[0] = strtol(dataTok, NULL, 0);
+            i = 1;
+            while (i < 8 && dataTok)
+            {
+                dataTok = strtok(NULL, ",");
+                if (dataTok) {
+                    digToggleSettings.payload[i] = strtol(dataTok, NULL, 0);
+                    i += 1;
+                }                    
+            }            
+            writeDigEE = true;
+            Logger::console("Set new payload bytes");
+        }
+        else Logger::console("Error processing payload");
 	} else if (cmdString == String("LOGLEVEL")) {
 		switch (newValue) {
 		case 0:
@@ -487,6 +568,10 @@ void SerialConsole::handleConfigCmd() {
 	{
 		EEPROM.write(EEPROM_PAGE, settings);
 	}
+	if (writeDigEE)
+    {
+        EEPROM.write(EEPROM_PAGE + 1, digToggleSettings);
+    }
 }
 
 /*
