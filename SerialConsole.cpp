@@ -107,6 +107,8 @@ void SerialConsole::printMenu() {
     Logger::console("DIGTOGLEVEL=%i - Set default level of digital pin (0 = LOW, 1 = HIGH)", digToggleSettings.mode >> 7);
     Logger::console("DIGTOGPIN=%i - Pin to use for digital toggling system (Use Arduino Digital Pin Number)", digToggleSettings.pin);
     Logger::console("DIGTOGID=%X - CAN ID to use for Rx or Tx", digToggleSettings.rxTxID);
+    Logger::console("DIGTOGCAN0=%i - Use CAN0 with Digital Toggling System? (0 = No, 1 = Yes)", (digToggleSettings.mode >> 1) & 1);
+    Logger::console("DIGTOGCAN1=%i - Use CAN1 with Digital Toggling System? (0 = No, 1 = Yes)", (digToggleSettings.mode >> 2) & 1);
     Logger::console("DIGTOGLEN=%i - Length of frame to send (Tx) or validate (Rx)", digToggleSettings.length);
     Logger::console("DIGTOGPAYLOAD=%X,%X,%X,%X,%X,%X,%X,%X - Payload to send or validate against (comma separated list)", digToggleSettings.payload[0],
                     digToggleSettings.payload[1], digToggleSettings.payload[2], digToggleSettings.payload[3], digToggleSettings.payload[4],
@@ -505,6 +507,24 @@ void SerialConsole::handleConfigCmd() {
             writeDigEE = true;
         }
         else Logger::console("Invalid CAN ID. Must be either an 11 or 29 bit ID");
+     } else if (cmdString == String("DIGTOGCAN0")) {
+        if (newValue >= 0 && newValue <= 1)
+        {
+            Logger::console("Setting Digital Toggle CAN0 Usage to %i", newValue);
+            if (newValue == 0) digToggleSettings.mode &= ~2;
+            if (newValue == 1) digToggleSettings.mode |= 2;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid value. Must be either 0 or 1");       
+     } else if (cmdString == String("DIGTOGCAN1")) {
+        if (newValue >= 0 && newValue <= 1)
+        {
+            Logger::console("Setting Digital Toggle CAN1 Usage to %i", newValue);
+            if (newValue == 0) digToggleSettings.mode &= ~4;
+            if (newValue == 1) digToggleSettings.mode |= 4;
+            writeDigEE = true;
+        }
+        else Logger::console("Invalid value. Must be either 0 or 1");                       
     } else if (cmdString == String("DIGTOGLEN")) {
         if (newValue >= 0 && newValue <= 8)
         {

@@ -59,10 +59,13 @@ SdFat sd;
 
 SerialConsole console;
 
+bool digTogglePinState;
+uint8_t digTogglePinCounter;
+
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
 void loadSettings()
-{
+{;;
 	EEPROM.read(EEPROM_PAGE, settings);
 
 	if (settings.version != EEPROM_VER) //if settings are not the current version then erase them and set defaults
@@ -130,7 +133,7 @@ void loadSettings()
     {
         Logger::console("Using stored values for digital toggling system");
     }
-
+    
 	Logger::setLoglevel((Logger::LogLevel)settings.logLevel);
 
 	SysSettings.SDCardInserted = false;
@@ -254,6 +257,28 @@ void setup()
 
     sys_early_setup();
     setup_sys_io();
+    
+    if (digToggleSettings.enabled)
+    {
+        if (digToggleSettings.mode & 1) { //input CAN and output pin state mode
+            pinMode(digToggleSettings.pin, OUTPUT);
+            if (digToggleSettings.mode & 0x80) {
+                digitalWrite(digToggleSettings.pin, LOW);
+                digTogglePinState = false;
+            }
+            else {
+                digitalWrite(digToggleSettings.pin, HIGH);
+                digTogglePinState = true;
+            }
+        }
+        else { //read pin and output CAN mode
+            pinMode(digToggleSettings.pin, INPUT);
+            digTogglePinCounter = 0;
+            if (digToggleSettings.mode & 0x80) digTogglePinState = false;
+            else digTogglePinState = true;          
+        }
+    }
+
 
 	if (settings.CAN0_Enabled)
 	{
@@ -483,6 +508,41 @@ void sendFrameToFile(CAN_FRAME &frame, int whichBus)
 	}
 }
 
+void processDigToggleFrame(CAN_FRAME &frame)
+{
+    bool gotFrame = false;
+    if (digToggleSettings.rxTxID == frame.id)
+    {
+        if (digToggleSettings.length == 0) gotFrame = true;
+        else {
+            gotFrame = true;
+            for (int c = 0; c < digToggleSettings.length; c++) {
+                if (digToggleSettings.payload[c] != frame.data.byte[c]) {
+                    gotFrame = false;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (gotFrame) { //then toggle output pin
+        Logger::console("Got special digital toggle frame. Toggling the output!");
+        digitalWrite(digToggleSettings.pin, digTogglePinState?LOW:HIGH);
+        digTogglePinState = !digTogglePinState;
+    }
+}
+
+void sendDigToggleMsg() {
+    CAN_FRAME frame;
+    frame.id = digToggleSettings.rxTxID;
+    if (frame.id > 0x7FF) frame.extended = true;
+    else frame.extended = false;
+    frame.length = digToggleSettings.length;
+    for (int c = 0; c < frame.length; c++) frame.data.byte[c] = digToggleSettings.payload[c];
+    if (digToggleSettings.mode & 2) Can0.sendFrame(frame);
+    if (digToggleSettings.mode & 4) Can1.sendFrame(frame);
+}
+
 /*
 Loop executes as often as possible all the while interrupts fire in the background.
 The serial comm protocol is as follows:
@@ -537,6 +597,7 @@ void loop()
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
+            if (digToggleSettings.enabled && (digToggleSettings.mode & 1) && (digToggleSettings.mode & 2)) processDigToggleFrame(incoming);
 			fwGotFrame(&incoming);
 		}
 
@@ -544,10 +605,32 @@ void loop()
 			Can1.read(incoming); 
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 1);
+            if (digToggleSettings.enabled && (digToggleSettings.mode & 1) && (digToggleSettings.mode & 4)) processDigToggleFrame(incoming);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
 		}
 		if (SysSettings.lawicelPollCounter > 0) SysSettings.lawicelPollCounter--;
 	//}
+        
+  if (digToggleSettings.enabled && !(digToggleSettings.mode & 1)) {
+      if (digTogglePinState) { //pin currently high. Look for it going low
+          if (!digitalRead(digToggleSettings.pin)) digTogglePinCounter++; //went low, increment debouncing counter 
+          else digTogglePinCounter = 0; //whoops, it bounced or never transitioned, reset counter to 0
+            
+          if (digTogglePinCounter > 3) { //transitioned to LOW for 4 checks in a row. We'll believe it then.
+              digTogglePinState = false;
+              sendDigToggleMsg();
+          }                
+      }
+      else { //pin currently low. Look for it going high
+          if (digitalRead(digToggleSettings.pin)) digTogglePinCounter++; //went high, increment debouncing counter 
+          else digTogglePinCounter = 0; //whoops, it bounced or never transitioned, reset counter to 0
+            
+          if (digTogglePinCounter > 3) { //transitioned to HIGH for 4 checks in a row. We'll believe it then.
+              digTogglePinState = true;
+              sendDigToggleMsg();
+          }                          
+      }      
+  }
 
   if (micros() - lastFlushMicros > SER_BUFF_FLUSH_INTERVAL)
   {

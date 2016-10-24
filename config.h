@@ -81,23 +81,29 @@ struct EEPROMSettings { //Must stay under 256 - currently somewhere around 222
 
 struct DigitalCANToggleSettings //16 bytes
 {
-    /*
-     * 0 = Read pin and send message when it changes state
-     * 1 = Set digital I/O on CAN Rx (Add 127
-     * If the value is 0 or 1 then the default state of the pin is assumed to be LOW
-     * If value has 128 added then default state is assumed to be HIGH
+    /* Mode is a bitfield. 
+     * Bit 0 - 
+     *     0 = Read pin and send message when it changes state
+     *     1 = Set digital I/O on CAN Rx (Add 127
      * 
-     * So, a value of 0 means to read the pin and send a message when it goes HIGH whereas a value of 128 would
-     * read the pin and send a message when it goes LOW.
+     * Bit 1 - 
+     *     0 = Don't listen to or send on CAN0
+     *     1 = Listen on or send on CAN0
+     * Bit 2 -
+     *     0 = Don't listen to or send on CAN1
+     *     1 = Listen on or send on CAN1
+     * Bit 7 -
+     *     0 = Pin is defaulted to LOW. If bit 0 is 0 then we assume the start up state is LOW, if bit 0 is 1 then we set pin LOW
+     *     1 = Pin is defaulted HIGH. If bit 0 is 0 then assume start up state is HIGH, if bit 0 is 1 then set pin HIGH
      * 
      * Mostly people don't have to worry about any of this because the serial console takes care of these details for you.
     */    
-    uint8_t mode; 
+    uint8_t mode;
     uint8_t pin; //which pin we'll be using to either read a digital input or send one
     uint32_t rxTxID; //which ID to use for reception and trasmission
     uint8_t payload[8];
     uint8_t length; //how many bytes to use for the message (TX) or how many to validate (RX)
-    boolean enabled; //true or false, is this special mode enabled or not?    
+    boolean enabled; //true or false, is this special mode enabled or not?
 };
 
 struct SystemSettings 

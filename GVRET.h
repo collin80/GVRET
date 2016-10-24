@@ -60,6 +60,8 @@ void loadSettings();
 void setSWCANSleep();
 void setSWCANEnabled();
 void setSWCANWakeup();
+void processDigToggleFrame(CAN_FRAME &frame);
+void sendDigToggleMsg();
 
 #endif /* GVRET_H_ */
 
