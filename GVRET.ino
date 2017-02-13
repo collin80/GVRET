@@ -69,10 +69,10 @@ void loadSettings()
 		Logger::console("Resetting to factory defaults");
 		settings.version = EEPROM_VER;
 		settings.appendFile = false;
-		settings.CAN0Speed = 250000;
-		settings.CAN0_Enabled = false;
-		settings.CAN1Speed = 250000;
-		settings.CAN1_Enabled = false;
+		settings.CAN0Speed = 500000;
+		settings.CAN0_Enabled = true;
+		settings.CAN1Speed = 500000;
+		settings.CAN1_Enabled = true;
 		sprintf((char *)settings.fileNameBase, "CANBUS");
 		sprintf((char *)settings.fileNameExt, "TXT");
 		settings.fileNum = 1;
