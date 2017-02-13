@@ -35,7 +35,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 #include <DueFlashStorage.h>
-#include <FirmwareReceiver.h>
 #include "SerialConsole.h"
 
 /*
@@ -53,7 +52,6 @@ uint32_t lastFlushMicros = 0;
 
 EEPROMSettings settings;
 SystemSettings SysSettings;
-FirmwareReceiver *fwReceiver;
 
 // file system on sdcard
 SdFat sd;
@@ -292,7 +290,6 @@ void setup()
 		}
 	}
 
-	fwReceiver = new FirmwareReceiver(&Can0, 0x1FDA4C36, 0x100);
 	
 	SysSettings.lawicelMode = false;
 	SysSettings.lawicelAutoPoll = false;
