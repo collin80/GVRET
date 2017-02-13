@@ -50,3 +50,14 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+FIRMWARE RECEIVER BULLSHIT NOT WORKING WONT COMPILE:
+https://github.com/collin80/GVRET/issues/17
+
+cd libraries
+git clone git@github.com:jerkey/GVRET.git
+git clone git@github.com:collin80/due_can.git
+git clone git@github.com:collin80/SdFat.git
+git clone git@github.com:collin80/due_wire.git
+git clone git@github.com:collin80/Wire_EEPROM.git
+git clone https://github.com/collin80/DueFlashStorage
