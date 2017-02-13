@@ -518,7 +518,7 @@ void loop()
 	//{
 		if (Can0.available()) {
 			Can0.read(incoming);
-			if (!digitalRead(ENABLE_PASS_0TO1_PIN)) Can1.sendFrame(incoming); // if pin is shorted to GND
+			if (digitalRead(ENABLE_PASS_0TO1_PIN)) Can1.sendFrame(incoming); // if pin is NOT shorted to GND
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
@@ -527,7 +527,7 @@ void loop()
 
 		if (Can1.available()) {
 			Can1.read(incoming); 
-			if (!digitalRead(ENABLE_PASS_1TO0_PIN)) Can0.sendFrame(incoming); // if pin is shorted to GND
+			if (digitalRead(ENABLE_PASS_1TO0_PIN)) Can0.sendFrame(incoming); // if pin is NOT shorted to GND
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 1);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
