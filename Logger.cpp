@@ -30,6 +30,7 @@
 #include <due_wire.h>
 #include "EEPROM.h"
 #include <SdFat.h>
+#include <Arduino_Due_SD_HSCMI.h>
 
 Logger::LogLevel Logger::logLevel = Logger::Info;
 uint32_t Logger::lastLogTime = 0;
@@ -37,6 +38,7 @@ uint16_t Logger::fileBuffWritePtr = 0;
 SdFile Logger::fileRef; //file we're logging to
 uint8_t Logger::filebuffer[BUF_SIZE]; //size of buffer for file output
 uint32_t Logger::lastWriteTime = 0;
+extern FileStore FS;
 
 /*
  * Output a debug message with a variable amount of parameters.
@@ -129,45 +131,90 @@ void Logger::flushFileBuff()
 {
 	Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
 	lastWriteTime = millis();
-	if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
-		Logger::error("Write to SDCard failed!");
-		SysSettings.useSD = false; //borked so stop trying.
-		fileBuffWritePtr = 0;
-		return;
-	}
-	fileRef.sync(); //needed in order to update the file if you aren't closing it ever
+    
+    if (settings.sysType < 3)
+    {
+        if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
+            Logger::error("Write to SDCard failed!");
+            SysSettings.useSD = false; //borked so stop trying.
+            fileBuffWritePtr = 0;
+            return;
+        }
+        fileRef.sync(); //needed in order to update the file if you aren't closing it ever
+    }
+    else //Macchina M2 
+    {
+        if (!FS.Write((const char *)filebuffer, fileBuffWritePtr)) {
+            Logger::error("Write to SDCard failed!");
+            SysSettings.useSD = false;
+            fileBuffWritePtr = 0;
+            return;
+        }
+        FS.Flush(); //force write of the data to card
+    }
+        
 	SysSettings.logToggle = !SysSettings.logToggle;
 	setLED(SysSettings.LED_LOGGING, SysSettings.logToggle);
 	fileBuffWritePtr = 0;
-
 }
 
 boolean Logger::setupFile()
 {
-	if (!fileRef.isOpen())  //file not open. Try to open it.
-	{
-		String filename;
-		if (settings.appendFile == 1)
-		{
-			filename = String(settings.fileNameBase);
-			filename.concat(".");
-			filename.concat(settings.fileNameExt);
-			fileRef.open(filename.c_str(), O_APPEND | O_WRITE);
-		}
-		else {
-			filename = String(settings.fileNameBase);
-			filename.concat(settings.fileNum++);
-			filename.concat(".");
-			filename.concat(settings.fileNameExt);
-			EEPROM.write(EEPROM_ADDR, settings); //save settings to save updated filenum
-			fileRef.open(filename.c_str(), O_CREAT | O_TRUNC | O_WRITE);
-		}
-		if (!fileRef.isOpen())
-		{
-			Logger::error("open failed");
-			return false;
-		}
+    if (settings.sysType < 3)
+    {
+        if (!fileRef.isOpen())  //file not open. Try to open it.
+        {
+            String filename;
+            if (settings.appendFile == 1)
+            {
+                filename = String(settings.fileNameBase);
+                filename.concat(".");
+                filename.concat(settings.fileNameExt);
+                fileRef.open(filename.c_str(), O_APPEND | O_WRITE);
+            }
+            else {
+                filename = String(settings.fileNameBase);
+                filename.concat(settings.fileNum++);
+                filename.concat(".");
+                filename.concat(settings.fileNameExt);
+                EEPROM.write(EEPROM_ADDR, settings); //save settings to save updated filenum
+                fileRef.open(filename.c_str(), O_CREAT | O_TRUNC | O_WRITE);
+            }
+            if (!fileRef.isOpen())
+            {
+                Logger::error("open failed");
+                return false;
+            }
+        }
 	}
+	else //Macchina M2
+    {
+        if (!FS.inUse)
+        {
+            String filename;
+            if (settings.appendFile == 1)
+            {
+                filename = String(settings.fileNameBase);
+                filename.concat(".");
+                filename.concat(settings.fileNameExt);
+                FS.Open("0:", filename.c_str(), true);
+                FS.GoToEnd();
+            }
+            else {
+                filename = String(settings.fileNameBase);
+                filename.concat(settings.fileNum++);
+                filename.concat(".");
+                filename.concat(settings.fileNameExt);
+                EEPROM.write(EEPROM_ADDR, settings); //save settings to save updated filenum
+                FS.Open("0:", filename.c_str(), true);                
+            }
+            if (!FS.inUse)
+            {
+                Logger::error("open failed");
+                return false;
+            }            
+        }
+    }
 
 	//Before we add the next frame see if the buffer is nearly full. if so flush it first.
 	if (fileBuffWritePtr > BUF_SIZE - 40)

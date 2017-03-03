@@ -31,6 +31,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #include <due_can.h>
 #include <SdFat.h>
+#include <Arduino_Due_SD_HSCMI.h> // This creates the object SD (HSCMI connected sdcard)
 #include <due_wire.h>
 #include <FirmwareReceiver.h>
 #include <SamNonDuePin.h>
@@ -63,8 +64,11 @@ EEPROMSettings settings;
 SystemSettings SysSettings;
 DigitalCANToggleSettings digToggleSettings;
 
-// file system on sdcard
+// file system on sdcard (SPI connected)
 SdFat sd;
+
+//file system on sdcard (HSCMI connected)
+FileStore FS; 
 
 SerialConsole console;
 
@@ -294,12 +298,20 @@ void setup()
 
 	if (SysSettings.eepromWPPin != 255) EEPROM.setWPPin(SysSettings.eepromWPPin);
 
-    if (SysSettings.useSD) {	
-		if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) 
-		{
-			Logger::error("Could not initialize SDCard! No file logging will be possible!");
-		}
-		else SysSettings.SDCardInserted = true;
+    if (SysSettings.useSD) {
+        if (settings.sysType < 3)
+        {
+            if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) 
+            {
+                Logger::error("Could not initialize SDCard! No file logging will be possible!");
+            }
+            else SysSettings.SDCardInserted = true;
+        }
+        else //Macchina M2
+        {
+            SD.Init();
+            FS.Init();
+        }
 		if (settings.autoStartLogging) {
 			SysSettings.logToFile = true;
 			Logger::info("Automatically logging to file.");
@@ -435,9 +447,11 @@ void addBits(int offset, CAN_FRAME &frame)
 
 void sendFrame(CANRaw &bus, CAN_FRAME &frame)
 {
+    int whichBus = 0;
+    if (&bus == &Can1) whichBus = 1;
     bus.sendFrame(frame);
-    if (&bus == &Can0) addBits(0, frame);
-    else addBits(1, frame);
+    sendFrameToFile(frame, whichBus); //copy sent frames to file as well.
+    addBits(whichBus, frame);
     toggleTXLED();
 }
 
