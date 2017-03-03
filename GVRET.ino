@@ -31,10 +31,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #include <due_can.h>
 #include <SdFat.h>
-#include <SdFatUtil.h>
 #include <due_wire.h>
-#include <Wire_EEPROM.h>
 #include <FirmwareReceiver.h>
+#include <SamNonDuePin.h>
+#include "EEPROM.h"
 #include "SerialConsole.h"
 
 /*
@@ -46,9 +46,18 @@ use the settings you set up without any external input.
 
 byte i = 0;
 
+typedef struct 
+{
+    uint32_t bitsPerQuarter;
+    uint32_t bitsSoFar;
+    uint8_t busloadPercentage;
+} BUSLOAD;
+
 byte serialBuffer[SER_BUFF_SIZE];
 int serialBufferLength = 0; //not creating a ring buffer. The buffer should be large enough to never overflow
 uint32_t lastFlushMicros = 0;
+BUSLOAD busLoad[2];
+uint32_t busLoadTimer;
 
 EEPROMSettings settings;
 SystemSettings SysSettings;
@@ -65,22 +74,24 @@ uint8_t digTogglePinCounter;
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
 void loadSettings()
-{;;
-	EEPROM.read(EEPROM_PAGE, settings);
-
+{
+    Logger::console("Loading settings....");
+    
+    EEPROM.read(EEPROM_ADDR, settings);
+    
 	if (settings.version != EEPROM_VER) //if settings are not the current version then erase them and set defaults
 	{
 		Logger::console("Resetting to factory defaults");
 		settings.version = EEPROM_VER;
 		settings.appendFile = false;
 		settings.CAN0Speed = 500000;
-		settings.CAN0_Enabled = false;
+		settings.CAN0_Enabled = true;
 		settings.CAN1Speed = 500000;
 		settings.CAN1_Enabled = false;
 		sprintf((char *)settings.fileNameBase, "CANBUS");
 		sprintf((char *)settings.fileNameExt, "TXT");
 		settings.fileNum = 1;
-		for (int i = 0; i < 3; i++) 
+		for (int i = 0; i < 3; i++)
 		{
 			settings.CAN0Filters[i].enabled = true;
 			settings.CAN0Filters[i].extended = true;
@@ -111,13 +122,15 @@ void loadSettings()
 		settings.singleWireMode = 0; //normal mode
 		settings.CAN0ListenOnly = false;
 		settings.CAN1ListenOnly = false;
-		EEPROM.write(EEPROM_PAGE, settings);
+		EEPROM.write(EEPROM_ADDR, settings);
 	}
 	else {
 		Logger::console("Using stored values from EEPROM");
+        if (settings.CAN0ListenOnly > 1) settings.CAN0ListenOnly = 0;
+        if (settings.CAN1ListenOnly > 1) settings.CAN1ListenOnly = 0;
 	}
 	
-	EEPROM.read(EEPROM_PAGE + 1, digToggleSettings);
+	EEPROM.read(EEPROM_ADDR + 1024, digToggleSettings);
 	if (digToggleSettings.mode == 255)
     {
         Logger::console("Resetting digital toggling system to defaults");
@@ -127,7 +140,7 @@ void loadSettings()
         digToggleSettings.pin = 1;
         digToggleSettings.rxTxID = 0x700;
         for (int c=0 ; c<8 ; c++) digToggleSettings.payload[c] = 0;
-        EEPROM.write(EEPROM_PAGE + 1, digToggleSettings);        
+        EEPROM.write(EEPROM_ADDR + 1024, digToggleSettings);        
     }
     else
     {
@@ -172,6 +185,40 @@ void loadSettings()
 			pinMode(13, OUTPUT); //just to be sure it's an output
 			digitalWrite(13, LOW);
 			break;
+        case 3:     //Macchina M2
+            Logger::console("Running on Macchina M2 hardware");
+            SysSettings.eepromWPPin = 255;    //Write protect not routed to any pin
+            SysSettings.CAN0EnablePin = 255;  //transceiver is always enabled, can still disable CAN hardware in chip though
+            SysSettings.CAN1EnablePin = 255;
+            SysSettings.SWCANMode0Pin = 255;  //Single wire handled differently on M2
+            SysSettings.SWCANMode1Pin = 255;
+            SysSettings.useSD = true;
+            SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
+            SysSettings.LED_CANTX = 12;       //RGB LED - Green channel
+            SysSettings.LED_CANRX = 5;        //RGB LED - Blue Channel
+            SysSettings.LED_LOGGING = 11;     //RGB LED - Red Channel
+            SysSettings.logToggle = false;
+            SysSettings.txToggle = true;
+            SysSettings.rxToggle = true;
+            pinMode(12, OUTPUT);
+            pinMode(5, OUTPUT);
+            pinMode(11, OUTPUT);
+            pinMode(23, OUTPUT); //this and next 4 are 5 LEDs running along top of interface board
+            pinMode(24, OUTPUT);
+            pinMode(27, OUTPUT);
+            pinMode(32, OUTPUT);
+            pinModeNonDue(X0, OUTPUT);
+            //Set RGB LED to completely off.
+            digitalWrite(12, HIGH);
+            digitalWrite(11, HIGH);
+            digitalWrite(5, HIGH);
+            //Now set 5 LED panel to all off
+            digitalWrite(23, HIGH);
+            digitalWrite(24, HIGH);
+            digitalWrite(27, HIGH);
+            digitalWrite(32, HIGH);
+            digitalWriteNonDue(X0, HIGH);            
+            break;
 		default: //CANDUE
 			Logger::console("Running on CANDue hardware");
 			SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
@@ -204,6 +251,16 @@ void loadSettings()
 		
 	if (settings.singleWireMode && settings.CAN1_Enabled) setSWCANEnabled();
 	else setSWCANSleep(); //start out setting single wire to sleep. 
+    
+    busLoad[0].bitsSoFar = 0;
+    busLoad[0].busloadPercentage = 0;
+    busLoad[0].bitsPerQuarter = settings.CAN0Speed / 4;
+    
+    busLoad[1].bitsSoFar = 0;
+    busLoad[1].busloadPercentage = 0;
+    busLoad[1].bitsPerQuarter = settings.CAN1Speed / 4;
+    
+    busLoadTimer = millis();
 }
 
 void setSWCANSleep()
@@ -229,16 +286,13 @@ void setSWCANWakeup()
 void setup()
 {
 	//delay(5000); //just for testing. Don't use in production
-    pinMode(BLINK_LED, OUTPUT);
-    digitalWrite(BLINK_LED, LOW);
 
-  Serial.begin(115200);
-	Wire.begin();
-	EEPROM.setWPPin(18); // a guess...
+    Serial.begin(115200);
+    Wire.begin();
 
 	loadSettings();
 
-	EEPROM.setWPPin(SysSettings.eepromWPPin);
+	if (SysSettings.eepromWPPin != 255) EEPROM.setWPPin(SysSettings.eepromWPPin);
 
     if (SysSettings.useSD) {	
 		if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) 
@@ -257,10 +311,12 @@ void setup()
 
     sys_early_setup();
     setup_sys_io();
-    
+  
     if (digToggleSettings.enabled)
     {
+        SerialUSB.println("Digital Toggle System Enabled");
         if (digToggleSettings.mode & 1) { //input CAN and output pin state mode
+            SerialUSB.println("In Output Mode");
             pinMode(digToggleSettings.pin, OUTPUT);
             if (digToggleSettings.mode & 0x80) {
                 digitalWrite(digToggleSettings.pin, LOW);
@@ -272,6 +328,7 @@ void setup()
             }
         }
         else { //read pin and output CAN mode
+            SerialUSB.println("In Input Mode");
             pinMode(digToggleSettings.pin, INPUT);
             digTogglePinCounter = 0;
             if (digToggleSettings.mode & 0x80) digTogglePinState = false;
@@ -338,7 +395,6 @@ void setup()
 	SysSettings.lawicelPollCounter = 0;
 
 	SerialUSB.print("Done with init\n");
-	digitalWrite(BLINK_LED, HIGH);
 }
 
 void setPromiscuousMode() {
@@ -369,10 +425,75 @@ uint8_t checksumCalc(uint8_t *buffer, int length)
 	return valu;
 }
 
+void addBits(int offset, CAN_FRAME &frame)
+{
+    if (offset < 0) return;
+    if (offset > 1) return;
+    busLoad[offset].bitsSoFar += 41 + (frame.length * 9);
+    if (frame.extended) busLoad[offset].bitsSoFar += 18;
+}
+
+void sendFrame(CANRaw &bus, CAN_FRAME &frame)
+{
+    bus.sendFrame(frame);
+    if (&bus == &Can0) addBits(0, frame);
+    else addBits(1, frame);
+    toggleTXLED();
+}
+
 void toggleRXLED()
 {
-	SysSettings.rxToggle = !SysSettings.rxToggle;
-	setLED(SysSettings.LED_CANRX, SysSettings.rxToggle);
+    static int counter = 0;
+    counter++;
+    if (counter >= BLINK_SLOWNESS)
+    {
+        counter = 0;
+        SysSettings.rxToggle = !SysSettings.rxToggle;
+        setLED(SysSettings.LED_CANRX, SysSettings.rxToggle);
+    }
+}
+
+void toggleTXLED()
+{
+    static int counter = 0;
+    counter++;
+    if (counter >= BLINK_SLOWNESS)
+    {
+        counter = 0;
+        SysSettings.txToggle = !SysSettings.txToggle;
+        setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
+    }
+}
+
+/*
+ * Pass bus load in percent 0 - 100
+ * The 5 LEDs are Green, Yellow, Yellow, Yellow, Red
+ * The values used for lighting up LEDs are very subjective
+ * but here is the justification:
+ * You want the first LED to light up if there is practically any
+ * traffic at all so it comes on over 0% load - This tells the user that some traffic exists
+ * The next few are timed to give the user some feedback that the load is increasing
+ * and are somewhat logarithmic
+ * The last LED comes on at 80% because busload really should never go over 80% for
+ * proper functionality so lighing up red past that is the right move.
+*/
+void updateBusloadLED(uint8_t perc)
+{
+    Logger::debug("Busload: %i", perc);
+    if (perc > 0) digitalWrite(23, LOW);
+        else digitalWrite(23, HIGH);
+        
+    if (perc >= 14) digitalWrite(24, LOW);
+        else digitalWrite(24, HIGH);
+        
+    if (perc >= 30) digitalWrite(27, LOW);
+        else digitalWrite(27, HIGH);
+        
+    if (perc >= 53) digitalWriteNonDue(X0, LOW);
+        else digitalWriteNonDue(X0, HIGH);
+        
+    if (perc >= 80) digitalWrite(32, LOW);
+        else digitalWrite(32, HIGH);
 }
 
 void sendFrameToUSB(CAN_FRAME &frame, int whichBus) 
@@ -534,13 +655,20 @@ void processDigToggleFrame(CAN_FRAME &frame)
 
 void sendDigToggleMsg() {
     CAN_FRAME frame;
+    SerialUSB.println("Got digital input trigger.");
     frame.id = digToggleSettings.rxTxID;
     if (frame.id > 0x7FF) frame.extended = true;
     else frame.extended = false;
     frame.length = digToggleSettings.length;
     for (int c = 0; c < frame.length; c++) frame.data.byte[c] = digToggleSettings.payload[c];
-    if (digToggleSettings.mode & 2) Can0.sendFrame(frame);
-    if (digToggleSettings.mode & 4) Can1.sendFrame(frame);
+    if (digToggleSettings.mode & 2) {
+        SerialUSB.println("Sending digital toggle message on CAN0");
+        sendFrame(Can0, frame);
+    }
+    if (digToggleSettings.mode & 4) {
+        SerialUSB.println("Sending digital toggle message on CAN1");
+        sendFrame(Can1, frame);
+    }
 }
 
 /*
@@ -568,10 +696,30 @@ void loop()
 	static uint32_t build_int;
 	uint8_t temp8;
 	uint16_t temp16;
+    uint32_t temp32;
 	static bool markToggle = false;
 	bool isConnected = false;
 	int serialCnt;
 	uint32_t now = micros();
+    
+    if (millis() > (busLoadTimer + 250))
+    {
+        busLoadTimer = millis();
+        busLoad[0].busloadPercentage = ((busLoad[0].busloadPercentage * 3) + (((busLoad[0].bitsSoFar * 1000) / busLoad[0].bitsPerQuarter) / 10)) / 4;
+        busLoad[1].busloadPercentage = ((busLoad[1].busloadPercentage * 3) + (((busLoad[1].bitsSoFar * 1000) / busLoad[1].bitsPerQuarter) / 10)) / 4;
+        //Force busload percentage to be at least 1% if any traffic exists at all. This forces the LED to light up for any traffic.
+        if (busLoad[0].busloadPercentage == 0 && busLoad[0].bitsSoFar > 0) busLoad[0].busloadPercentage = 1;
+        if (busLoad[1].busloadPercentage == 0 && busLoad[1].bitsSoFar > 0) busLoad[1].busloadPercentage = 1;        
+        busLoad[0].bitsPerQuarter = settings.CAN0Speed / 4;
+        busLoad[1].bitsPerQuarter = settings.CAN1Speed / 4;
+        busLoad[0].bitsSoFar = 0;
+        busLoad[1].bitsSoFar = 0;
+        if (settings.sysType == 3) //Macchina M2
+        {
+            if (busLoad[0].busloadPercentage > busLoad[1].busloadPercentage) updateBusloadLED(busLoad[0].busloadPercentage);
+                else updateBusloadLED(busLoad[1].busloadPercentage);
+        }
+    }
 
 	/*if (SerialUSB)*/ isConnected = true;
 
@@ -594,6 +742,7 @@ void loop()
 	//{
 		if (Can0.available()) {
 			Can0.read(incoming);
+            addBits(0, incoming);
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
@@ -603,6 +752,7 @@ void loop()
 
 		if (Can1.available()) {
 			Can1.read(incoming); 
+            addBits(1, incoming);
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 1);
             if (digToggleSettings.enabled && (digToggleSettings.mode & 1) && (digToggleSettings.mode & 4)) processDigToggleFrame(incoming);
@@ -631,6 +781,8 @@ void loop()
           }                          
       }      
   }
+  
+  //delay(100);
 
   if (micros() - lastFlushMicros > SER_BUFF_FLUSH_INTERVAL)
   {
@@ -824,8 +976,8 @@ void loop()
 						   }
 					   }
 				   }
-				   if (out_bus == 0) Can0.sendFrame(build_out_frame);
-				   if (out_bus == 1) Can1.sendFrame(build_out_frame);
+				   if (out_bus == 0) sendFrame(Can0, build_out_frame);
+				   if (out_bus == 1) sendFrame(Can1, build_out_frame);
 
 				   if (settings.singleWireMode == 1)
 				   {
@@ -971,7 +1123,7 @@ void loop()
 			   }
 			   state = IDLE;
 			    //now, write out the new canbus settings to EEPROM
-				EEPROM.write(EEPROM_PAGE, settings);
+				EEPROM.write(EEPROM_ADDR, settings);
 				setPromiscuousMode();
 			   break;
 		   }
@@ -988,12 +1140,12 @@ void loop()
 			   settings.singleWireMode = false;
 			   setSWCANSleep();
 		   }
-		   EEPROM.write(EEPROM_PAGE, settings);
+		   EEPROM.write(EEPROM_ADDR, settings);
 		   state = IDLE;
 		   break;
 	   case SET_SYSTYPE:
 		   settings.sysType = in_byte;		   
-		   EEPROM.write(EEPROM_PAGE, settings);
+		   EEPROM.write(EEPROM_ADDR, settings);
 		   loadSettings();
 		   state = IDLE;
 		   break;
