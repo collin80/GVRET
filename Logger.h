@@ -29,6 +29,7 @@
 
 #include <Arduino.h>
 #include <SdFat.h>
+#include <SdFatUtil.h>
 #include "config.h"
 
 

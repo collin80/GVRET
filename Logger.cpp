@@ -28,8 +28,10 @@
 #include "config.h"
 #include "sys_io.h"
 #include <due_wire.h>
-#include "EEPROM.h"
+#include <Wire_EEPROM.h>
 #include <SdFat.h>
+#include <SdFatUtil.h>
+
 
 Logger::LogLevel Logger::logLevel = Logger::Info;
 uint32_t Logger::lastLogTime = 0;
@@ -159,7 +161,7 @@ boolean Logger::setupFile()
 			filename.concat(settings.fileNum++);
 			filename.concat(".");
 			filename.concat(settings.fileNameExt);
-			EEPROM.write(EEPROM_ADDR, settings); //save settings to save updated filenum
+			EEPROM.write(EEPROM_PAGE, settings); //save settings to save updated filenum
 			fileRef.open(filename.c_str(), O_CREAT | O_TRUNC | O_WRITE);
 		}
 		if (!fileRef.isOpen())

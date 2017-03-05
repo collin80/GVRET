@@ -28,12 +28,10 @@
 
 #include "SerialConsole.h"
 #include <due_wire.h>
+#include <Wire_EEPROM.h>
 #include <due_can.h>
-#include "EEPROM.h"
 #include "config.h"
 #include "sys_io.h"
-
-extern EEPROMCLASS *eeprom;
 
 SerialConsole::SerialConsole() {
 	init();
@@ -66,7 +64,7 @@ void SerialConsole::printMenu() {
     SerialUSB.println();
 
     Logger::console("LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", settings.logLevel);
-	Logger::console("SYSTYPE=%i - set board type (0=CANDue, 1=GEVCU, 2=CANDUE13, 3=MACCHINA_M2)", settings.sysType);
+	Logger::console("SYSTYPE=%i - set board type (0=CANDue, 1=GEVCU)", settings.sysType);
 	SerialUSB.println();
 
 	Logger::console("CAN0EN=%i - Enable/Disable CAN0 (0 = Disable, 1 = Enable)", settings.CAN0_Enabled);
@@ -461,12 +459,12 @@ void SerialConsole::handleConfigCmd() {
 		writeEEPROM = true;
 	}
 	else if (cmdString == String("SYSTYPE")) {
-		if (newValue < 4 && newValue >= 0) {
+		if (newValue < 2 && newValue >= 0) {
 			settings.sysType = newValue;			
 			writeEEPROM = true;
 			Logger::console("System type updated. Power cycle to apply.");
 		}
-		else Logger::console("Invalid system type. Please enter a value between 0 and 3");
+		else Logger::console("Invalid system type. Please enter a value of 0 for CanDue or 1 for GEVCU");
     } else if (cmdString == String("DIGTOGEN")) {
         if (newValue >= 0 && newValue <= 1)
         {
@@ -588,11 +586,11 @@ void SerialConsole::handleConfigCmd() {
 	}
 	if (writeEEPROM) 
 	{
-		EEPROM.write(EEPROM_ADDR, settings);
+		EEPROM.write(EEPROM_PAGE, settings);
 	}
 	if (writeDigEE)
     {
-        EEPROM.write(EEPROM_ADDR + 1024, digToggleSettings);
+        EEPROM.write(EEPROM_PAGE + 1, digToggleSettings);
     }
 }
 
@@ -618,7 +616,7 @@ void SerialConsole::handleShortCmd() {
 		break;        
 	case 'R': //reset to factory defaults.
 		settings.version = 0xFF;
-		EEPROM.write(EEPROM_ADDR, settings);
+		EEPROM.write(EEPROM_PAGE, settings);
 		Logger::console("Power cycle to reset to factory defaults");
 		break;
 	case 's': //start logging canbus to file

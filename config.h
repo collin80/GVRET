@@ -70,7 +70,7 @@ struct EEPROMSettings { //Must stay under 256 - currently somewhere around 222
 	boolean autoStartLogging; //should logging start immediately on start up?
 
 	uint8_t logLevel; //Level of logging to output on serial line
-	uint8_t sysType; //0 = CANDUE, 1 = GEVCU, 2 = CANDue13, 3 = Macchina M2
+	uint8_t sysType; //0 = CANDUE, 1 = GEVCU
 
 	uint16_t valid; //stores a validity token to make sure EEPROM is not corrupt
 
@@ -146,9 +146,9 @@ extern DigitalCANToggleSettings digToggleSettings;
 //The host should be polling every 1ms or so and so this time should be a small multiple of that
 #define SER_BUFF_FLUSH_INTERVAL	2000   
 
-#define CFG_BUILD_NUM	336
-#define CFG_VERSION "GVRET alpha 2017-03-02"
-#define EEPROM_ADDR     0
+#define CFG_BUILD_NUM	334
+#define CFG_VERSION "GVRET alpha 2016-10-23"
+#define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x15
 
 #define CANDUE_EEPROM_WP_PIN	18
@@ -172,12 +172,6 @@ extern DigitalCANToggleSettings digToggleSettings;
 #define NUM_ANALOG	4
 #define NUM_DIGITAL	4
 #define NUM_OUTPUT	8
-
-//Number of times a frame would have to be sent or received to actually toggle the LED
-//This number thus slows down the blinking quite a bit - Useful to make it easier to see
-//what is going on based on the LEDs.
-//Applies just to RX and TX leds
-#define BLINK_SLOWNESS      32  
 
 #endif /* CONFIG_H_ */
 
