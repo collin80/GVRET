@@ -28,7 +28,7 @@ The canbus is supposed to be terminated on both ends of the bus. This should not
 
 This software is MIT licensed:
 
-Copyright (c) 2014-2015 Collin Kidder, Michael Neuweiler, Charles Galpin
+Copyright (c) 2014-2017 Collin Kidder, Michael Neuweiler, Charles Galpin
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
