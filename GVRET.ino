@@ -31,10 +31,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #include <due_can.h>
 #include <SdFat.h>
-#include <SdFatUtil.h>
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
-#include <FirmwareReceiver.h>
 #include "SerialConsole.h"
 
 /*
@@ -65,7 +63,7 @@ uint8_t digTogglePinCounter;
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
 void loadSettings()
-{;;
+{
 	EEPROM.read(EEPROM_PAGE, settings);
 
 	if (settings.version != EEPROM_VER) //if settings are not the current version then erase them and set defaults
@@ -74,9 +72,9 @@ void loadSettings()
 		settings.version = EEPROM_VER;
 		settings.appendFile = false;
 		settings.CAN0Speed = 500000;
-		settings.CAN0_Enabled = false;
+		settings.CAN0_Enabled = true;
 		settings.CAN1Speed = 500000;
-		settings.CAN1_Enabled = false;
+		settings.CAN1_Enabled = true;
 		sprintf((char *)settings.fileNameBase, "CANBUS");
 		sprintf((char *)settings.fileNameExt, "TXT");
 		settings.fileNum = 1;
@@ -231,6 +229,12 @@ void setup()
 	//delay(5000); //just for testing. Don't use in production
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
+    
+    pinMode(ENABLE_PASS_0TO1_PIN, INPUT);
+    pinMode(ENABLE_PASS_1TO0_PIN, INPUT);
+    
+    digitalWrite(ENABLE_PASS_0TO1_PIN, HIGH); // enable pull-up resistor
+    digitalWrite(ENABLE_PASS_1TO0_PIN, HIGH); // enable pull-up resistor
 
   Serial.begin(115200);
 	Wire.begin();
@@ -594,15 +598,16 @@ void loop()
 	//{
 		if (Can0.available()) {
 			Can0.read(incoming);
+            if (digitalRead(ENABLE_PASS_0TO1_PIN)) Can1.sendFrame(incoming); // if pin is NOT shorted to GND
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 0);
 			if (SysSettings.logToFile) sendFrameToFile(incoming, 0);
             if (digToggleSettings.enabled && (digToggleSettings.mode & 1) && (digToggleSettings.mode & 2)) processDigToggleFrame(incoming);
-			fwGotFrame(&incoming);
 		}
 
 		if (Can1.available()) {
 			Can1.read(incoming); 
+            if (digitalRead(ENABLE_PASS_1TO0_PIN)) Can0.sendFrame(incoming); // if pin is NOT shorted to GND
 			toggleRXLED();
 			if (isConnected) sendFrameToUSB(incoming, 1);
             if (digToggleSettings.enabled && (digToggleSettings.mode & 1) && (digToggleSettings.mode & 4)) processDigToggleFrame(incoming);

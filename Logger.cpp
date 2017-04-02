@@ -30,7 +30,6 @@
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 #include <SdFat.h>
-#include <SdFatUtil.h>
 
 
 Logger::LogLevel Logger::logLevel = Logger::Info;
