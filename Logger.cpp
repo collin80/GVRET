@@ -118,183 +118,175 @@ void Logger::console(const char *message, ...)
 
 void Logger::buffPutChar(char c)
 {
-	*(filebuffer + fileBuffWritePtr++) = c;
+    *(filebuffer + fileBuffWritePtr++) = c;
 }
 
 void Logger::buffPutString(const char *c)
 {
-	while (*c) *(filebuffer + fileBuffWritePtr++) = *c++;
+    while (*c) *(filebuffer + fileBuffWritePtr++) = *c++;
 }
 
 void Logger::flushFileBuff()
 {
-	Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
-	lastWriteTime = millis();
-	if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
-		Logger::error("Write to SDCard failed!");
-		SysSettings.useSD = false; //borked so stop trying.
-		fileBuffWritePtr = 0;
-		return;
-	}
-	fileRef.sync(); //needed in order to update the file if you aren't closing it ever
-	SysSettings.logToggle = !SysSettings.logToggle;
-	setLED(SysSettings.LED_LOGGING, SysSettings.logToggle);
-	fileBuffWritePtr = 0;
+    Logger::debug("Write to SD Card %i bytes", fileBuffWritePtr);
+    lastWriteTime = millis();
+    if (fileRef.write(filebuffer, fileBuffWritePtr) != fileBuffWritePtr) {
+        Logger::error("Write to SDCard failed!");
+        SysSettings.useSD = false; //borked so stop trying.
+        fileBuffWritePtr = 0;
+        return;
+    }
+    fileRef.sync(); //needed in order to update the file if you aren't closing it ever
+    SysSettings.logToggle = !SysSettings.logToggle;
+    setLED(SysSettings.LED_LOGGING, SysSettings.logToggle);
+    fileBuffWritePtr = 0;
 
 }
 
 boolean Logger::setupFile()
 {
-	if (!fileRef.isOpen())  //file not open. Try to open it.
-	{
-		String filename;
-		if (settings.appendFile == 1)
-		{
-			filename = String(settings.fileNameBase);
-			filename.concat(".");
-			filename.concat(settings.fileNameExt);
-			fileRef.open(filename.c_str(), O_APPEND | O_WRITE);
-		}
-		else {
-			filename = String(settings.fileNameBase);
-			filename.concat(settings.fileNum++);
-			filename.concat(".");
-			filename.concat(settings.fileNameExt);
-			EEPROM.write(EEPROM_PAGE, settings); //save settings to save updated filenum
-			fileRef.open(filename.c_str(), O_CREAT | O_TRUNC | O_WRITE);
-		}
-		if (!fileRef.isOpen())
-		{
-			Logger::error("open failed");
-			return false;
-		}
-	}
+    if (!fileRef.isOpen()) { //file not open. Try to open it.
+        String filename;
+        if (settings.appendFile == 1) {
+            filename = String(settings.fileNameBase);
+            filename.concat(".");
+            filename.concat(settings.fileNameExt);
+            fileRef.open(filename.c_str(), O_APPEND | O_WRITE);
+        } else {
+            filename = String(settings.fileNameBase);
+            filename.concat(settings.fileNum++);
+            filename.concat(".");
+            filename.concat(settings.fileNameExt);
+            EEPROM.write(EEPROM_PAGE, settings); //save settings to save updated filenum
+            fileRef.open(filename.c_str(), O_CREAT | O_TRUNC | O_WRITE);
+        }
+        if (!fileRef.isOpen()) {
+            Logger::error("open failed");
+            return false;
+        }
+    }
 
-	//Before we add the next frame see if the buffer is nearly full. if so flush it first.
-	if (fileBuffWritePtr > BUF_SIZE - 40)
-	{
-		flushFileBuff();
-	}
-	return true;
+    //Before we add the next frame see if the buffer is nearly full. if so flush it first.
+    if (fileBuffWritePtr > BUF_SIZE - 40) {
+        flushFileBuff();
+    }
+    return true;
 }
 
 void Logger::loop()
 {
-	if (fileBuffWritePtr > 0) {
-		if (millis() > (lastWriteTime + 1000)) //if it's been at least 1 second since the last write and we have data to write
-		{
-			flushFileBuff();
-		}
-	}
+    if (fileBuffWritePtr > 0) {
+        if (millis() > (lastWriteTime + 1000)) { //if it's been at least 1 second since the last write and we have data to write
+            flushFileBuff();
+        }
+    }
 }
 
 void Logger::file(const char *message, ...)
 {
-	if (!SysSettings.SDCardInserted) return; // not possible to log without card
+    if (!SysSettings.SDCardInserted) return; // not possible to log without card
 
-	char buff[20];
+    char buff[20];
 
-	va_list args;
-	va_start(args, message);	
+    va_list args;
+    va_start(args, message);
 
-	if (!setupFile()) return;
-	
-	for (; *message != 0; ++message) {
-		if (*message == '%') {
-			++message;
+    if (!setupFile()) return;
 
-			if (*message == '\0') {
-				break;
-			}
+    for (; *message != 0; ++message) {
+        if (*message == '%') {
+            ++message;
 
-			if (*message == '%') {
-				buffPutChar(*message);
-				continue;
-			}
+            if (*message == '\0') {
+                break;
+            }
 
-			if (*message == 's') {
-				register char *s = (char *)va_arg(args, int);
-				buffPutString(s);
-				continue;
-			}
+            if (*message == '%') {
+                buffPutChar(*message);
+                continue;
+            }
 
-			if (*message == 'd' || *message == 'i') {
-				sprintf(buff, "%i", va_arg(args, int));
-				buffPutString(buff);
-				continue;
-			}
+            if (*message == 's') {
+                register char *s = (char *)va_arg(args, int);
+                buffPutString(s);
+                continue;
+            }
 
-			if (*message == 'f') {
-				sprintf(buff, "%f0.2", va_arg(args, double));
-				buffPutString(buff);
-				continue;
-			}
+            if (*message == 'd' || *message == 'i') {
+                sprintf(buff, "%i", va_arg(args, int));
+                buffPutString(buff);
+                continue;
+            }
 
-			if (*message == 'x') {
-				sprintf(buff, "%x", va_arg(args, int));
-				buffPutString(buff);				
-				continue;
-			}
+            if (*message == 'f') {
+                sprintf(buff, "%f0.2", va_arg(args, double));
+                buffPutString(buff);
+                continue;
+            }
 
-			if (*message == 'X') {
-				buffPutString("0x");
-				sprintf(buff, "%x", va_arg(args, int));
-				buffPutString(buff);
-				continue;
-			}
+            if (*message == 'x') {
+                sprintf(buff, "%x", va_arg(args, int));
+                buffPutString(buff);
+                continue;
+            }
 
-			if (*message == 'l') {
-				sprintf(buff, "%l", va_arg(args, long));
-				buffPutString(buff);
-				continue;
-			}
+            if (*message == 'X') {
+                buffPutString("0x");
+                sprintf(buff, "%x", va_arg(args, int));
+                buffPutString(buff);
+                continue;
+            }
 
-			if (*message == 'c') {
-				buffPutChar(va_arg(args, int));
-				continue;
-			}
+            if (*message == 'l') {
+                sprintf(buff, "%l", va_arg(args, long));
+                buffPutString(buff);
+                continue;
+            }
 
-			if (*message == 't') {
-				if (va_arg(args, int) == 1) {
-					buffPutString("T");
-				}
-				else {
-					buffPutString("F");
-				}
+            if (*message == 'c') {
+                buffPutChar(va_arg(args, int));
+                continue;
+            }
 
-				continue;
-			}
+            if (*message == 't') {
+                if (va_arg(args, int) == 1) {
+                    buffPutString("T");
+                } else {
+                    buffPutString("F");
+                }
 
-			if (*message == 'T') {
-				if (va_arg(args, int) == 1) {
-					buffPutString("TRUE");
-				}
-				else {
-					buffPutString("FALSE");
-				}
-				continue;
-			}
+                continue;
+            }
 
-		}
+            if (*message == 'T') {
+                if (va_arg(args, int) == 1) {
+                    buffPutString("TRUE");
+                } else {
+                    buffPutString("FALSE");
+                }
+                continue;
+            }
 
-		buffPutChar(*message);
-	}
+        }
 
-	buffPutString("\r\n");
+        buffPutChar(*message);
+    }
 
-	va_end(args);
+    buffPutString("\r\n");
+
+    va_end(args);
 
 }
 
-void Logger::fileRaw(uint8_t* buff, int sz) 
+void Logger::fileRaw(uint8_t* buff, int sz)
 {
-	if (!SysSettings.SDCardInserted) return; // not possible to log without card
+    if (!SysSettings.SDCardInserted) return; // not possible to log without card
 
-	if (!setupFile()) return;
+    if (!setupFile()) return;
 
-	for (int i; i < sz; i++) {
-		buffPutChar(*buff++);
-	}
+    for (int i; i < sz; i++) {
+        buffPutChar(*buff++);
+    }
 }
 
 /*
@@ -361,21 +353,21 @@ void Logger::log(LogLevel level, const char *format, va_list args)
     SerialUSB.print(" - ");
 
     switch (level) {
-        case Debug:
-            SerialUSB.print("DEBUG");
-            break;
+    case Debug:
+        SerialUSB.print("DEBUG");
+        break;
 
-        case Info:
-            SerialUSB.print("INFO");
-            break;
+    case Info:
+        SerialUSB.print("INFO");
+        break;
 
-        case Warn:
-            SerialUSB.print("WARNING");
-            break;
+    case Warn:
+        SerialUSB.print("WARNING");
+        break;
 
-        case Error:
-            SerialUSB.print("ERROR");
-            break;
+    case Error:
+        SerialUSB.print("ERROR");
+        break;
     }
 
     SerialUSB.print(": ");

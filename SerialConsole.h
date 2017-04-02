@@ -31,32 +31,32 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sys_io.h"
 #include "GVRET.h"
 
-class SerialConsole {
+class SerialConsole
+{
 public:
     SerialConsole();
-	void printMenu();
-	void rcvCharacter(uint8_t chr);
+    void printMenu();
+    void rcvCharacter(uint8_t chr);
 
 protected:
-	enum CONSOLE_STATE
-	{
-		STATE_ROOT_MENU
-	};
+    enum CONSOLE_STATE {
+        STATE_ROOT_MENU
+    };
 
 private:
-	char cmdBuffer[80];
-	int ptrBuffer;
-	int state;
-    
-	void init();
-	void handleConsoleCmd();
-	void handleShortCmd();
-	void handleConfigCmd();
-	void handleLawicelCmd();
-	bool handleFilterSet(uint8_t bus, uint8_t filter, char *values);
-	bool handleCANSend(CANRaw &port, char *inputString);
-	unsigned int parseHexCharacter(char chr);
-	unsigned int parseHexString(char *str, int length);
+    char cmdBuffer[80];
+    int ptrBuffer;
+    int state;
+
+    void init();
+    void handleConsoleCmd();
+    void handleShortCmd();
+    void handleConfigCmd();
+    void handleLawicelCmd();
+    bool handleFilterSet(uint8_t bus, uint8_t filter, char *values);
+    bool handleCANSend(CANRaw &port, char *inputString);
+    unsigned int parseHexCharacter(char chr);
+    unsigned int parseHexString(char *str, int length);
 };
 
 #endif /* SERIALCONSOLE_H_ */
