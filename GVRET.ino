@@ -608,6 +608,7 @@ void loop()
             else if (in_byte == 0xE7) {
                 settings.useBinarySerialComm = true;
                 SysSettings.lawicelMode = false;
+                setPromiscuousMode(); //go into promisc. mode with binary comm
             } else {
                 console.rcvCharacter((uint8_t)in_byte);
             }
