@@ -54,8 +54,10 @@ struct EEPROMSettings { //Must stay under 256 - currently somewhere around 222
 
     uint32_t CAN0Speed;
     uint32_t CAN1Speed;
+    uint32_t SWCANSpeed;
     boolean CAN0_Enabled;
     boolean CAN1_Enabled;
+    boolean singleWire_Enabled; //On older hardware tries to turn CAN1 into SW, newer hardware has dedicated chips for it
     FILTER CAN0Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
     FILTER CAN1Filters[8]; // filters for our 8 mailboxes - 10*8 = 80 bytes
 
@@ -69,13 +71,13 @@ struct EEPROMSettings { //Must stay under 256 - currently somewhere around 222
     boolean autoStartLogging; //should logging start immediately on start up?
 
     uint8_t logLevel; //Level of logging to output on serial line
-    uint8_t sysType; //0 = CANDUE, 1 = GEVCU
+    uint8_t sysType; //0 = CANDUE, 1 = GEVCU, 2 = CANDue 1.3 to 2.1, 3 = CANDue 2.2
 
     uint16_t valid; //stores a validity token to make sure EEPROM is not corrupt
 
-    uint8_t singleWireMode; //anything other than 1 means normal mode. 1 means use single wire mode where we strobe the enable line to go into HV mode
     boolean CAN0ListenOnly; //if true we don't allow any messing with the bus but rather just passively monitor.
     boolean CAN1ListenOnly;
+    boolean SWCANListenOnly;
 };
 
 struct DigitalCANToggleSettings { //16 bytes
@@ -112,6 +114,7 @@ struct SystemSettings {
     uint8_t SWCANMode1Pin;
     boolean useSD; //should we attempt to use the SDCard? (No logging possible otherwise)
     boolean logToFile; //are we currently supposed to be logging to file?
+    boolean dedicatedSWCAN; //true if there is a dedicated SWCAN channel. Found on CANDue 2.2 or higher boards
     uint8_t SDCardSelPin;
     boolean SDCardInserted;
     uint8_t LED_CANTX;
@@ -143,10 +146,10 @@ extern DigitalCANToggleSettings digToggleSettings;
 //The host should be polling every 1ms or so and so this time should be a small multiple of that
 #define SER_BUFF_FLUSH_INTERVAL	2000
 
-#define CFG_BUILD_NUM	334
-#define CFG_VERSION "GVRET alpha 2016-10-23"
+#define CFG_BUILD_NUM	340
+#define CFG_VERSION "GVRET alpha 2017-09-18"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
-#define EEPROM_VER		0x15
+#define EEPROM_VER		0x17
 
 #define CANDUE_EEPROM_WP_PIN	18
 #define CANDUE_CAN0_EN_PIN		50
@@ -157,6 +160,12 @@ extern DigitalCANToggleSettings digToggleSettings;
 #define CANDUE_SWCAN_MODE1		44
 #define ENABLE_PASS_0TO1_PIN    11
 #define ENABLE_PASS_1TO0_PIN    12
+
+#define CANDUE22_SW_RESET       32
+#define CANDUE22_SW_CS          34
+#define CANDUE22_SW_INT         38
+#define CANDUE22_SW_RXB0        41
+#define CANDUE22_SW_RXB1        40
 
 #define GEVCU_EEPROM_WP_PIN		19
 #define GEVCU_CAN0_EN_PIN		255  //GEVCU has a different transceiver with no enable pin

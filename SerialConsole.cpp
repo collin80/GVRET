@@ -30,8 +30,11 @@
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 #include <due_can.h>
+#include <MCP2515_sw_can.h>
 #include "config.h"
 #include "sys_io.h"
+
+extern MCP2515 SWCAN;
 
 SerialConsole::SerialConsole()
 {
@@ -91,7 +94,12 @@ void SerialConsole::printMenu()
     Logger::console("CAN0SEND=ID,LEN,<BYTES SEPARATED BY COMMAS> - Ex: C0SEND=0x200,4,1,2,3,4");
     Logger::console("CAN1SEND=ID,LEN,<BYTES SEPARATED BY COMMAS> - Ex: C1SEND=0x200,8,00,00,00,10,0xAA,0xBB,0xA0,00");
     Logger::console("MARK=<Description of what you are doing> - Set a mark in the log file about what you are about to do.");
-    Logger::console("SINGLEWIRE=%i - Use single wire mode (0 = Normal Mode 1 = Single Wire Mode", settings.singleWireMode);
+    if (!SysSettings.dedicatedSWCAN)
+        Logger::console("SINGLEWIRE=%i - Use single wire mode (0 = Normal Mode 1 = Single Wire Mode", settings.singleWire_Enabled);
+    else
+        Logger::console("SINGLEWIRE=%i - Enable/Disable Single Wire CAN interface (0 = Disable 1 = Enable", settings.singleWire_Enabled);
+        Logger::console("SWSPEED=%i - Set speed of SW CAN Interface (33333 or 100000 likely)", settings.SWCANSpeed);
+        Logger::console("SWSEND=ID,LEN,<BYTES SEPARATED BY COMMAS> - Ex: C0SEND=0x200,4,1,2,3,4");
     SerialUSB.println();
 
     Logger::console("BINSERIAL=%i - Enable/Disable Binary Sending of CANBus Frames to Serial (0=Dis, 1=En)", settings.useBinarySerialComm);
@@ -308,7 +316,13 @@ void SerialConsole::handleConfigCmd()
             Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
             writeEEPROM = true;
         } else Logger::console("Invalid baud rate! Enter a value 1 - 1000000");
-
+    } else if (cmdString == String("SWSPEED")) {
+        if (newValue > 0 && newValue <= 1000000) {
+            Logger::console("Setting SWCAN Baud Rate to %i", newValue);
+            settings.SWCANSpeed = newValue;
+            //Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
+            writeEEPROM = true;
+        } else Logger::console("Invalid baud rate! Enter a value 1 - 1000000");
     } else if (cmdString == String("CAN0LISTENONLY")) {
         if (newValue >= 0 && newValue <= 1) {
             Logger::console("Setting CAN0 Listen Only to %i", newValue);
@@ -367,6 +381,8 @@ void SerialConsole::handleConfigCmd()
         handleCANSend(Can0, newString);
     } else if (cmdString == String("CAN1SEND")) {
         handleCANSend(Can1, newString);
+    } else if (cmdString == String("SWSEND")) {
+        handleSWCANSend(newString);        
     } else if (cmdString == String("MARK")) { //just ascii based for now
         if (settings.fileOutputType == GVRET) Logger::file("Mark: %s", newString);
         if (settings.fileOutputType == CRTD) {
@@ -384,7 +400,7 @@ void SerialConsole::handleConfigCmd()
         if (newValue < 0) newValue = 0;
         if (newValue > 1) newValue = 1;
         Logger::console("Setting Single Wire Mode to %i", newValue);
-        settings.singleWireMode = newValue;
+        settings.singleWire_Enabled = newValue;
         writeEEPROM = true;
     } else if (cmdString == String("BINSERIAL")) {
         if (newValue < 0) newValue = 0;
@@ -423,11 +439,11 @@ void SerialConsole::handleConfigCmd()
         settings.autoStartLogging = newValue;
         writeEEPROM = true;
     } else if (cmdString == String("SYSTYPE")) {
-        if (newValue < 2 && newValue >= 0) {
+        if (newValue < 4 && newValue >= 0) {
             settings.sysType = newValue;
             writeEEPROM = true;
             Logger::console("System type updated. Power cycle to apply.");
-        } else Logger::console("Invalid system type. Please enter a value of 0 for CanDue or 1 for GEVCU");
+        } else Logger::console("Invalid system type. Please enter a value of 0 for CanDue (V1), 1 for GEVCU, 2 for CANDue 1.3-2.1, 3 for CANDue 2.2");
     } else if (cmdString == String("DIGTOGEN")) {
         if (newValue >= 0 && newValue <= 1) {
             Logger::console("Setting Digital Toggle System Enable to %i", newValue);
@@ -673,6 +689,38 @@ bool SerialConsole::handleCANSend(CANRaw &port, char *inputString)
     frame.length = lenVal;
     port.sendFrame(frame);
     Logger::console("Sending frame with id: 0x%x len: %i", frame.id, frame.length);
+    SysSettings.txToggle = !SysSettings.txToggle;
+    setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
+    return true;
+}
+
+bool SerialConsole::handleSWCANSend(char *inputString)
+{
+    char *idTok = strtok(inputString, ",");
+    char *lenTok = strtok(NULL, ",");
+    char *dataTok;
+    Frame frame;
+
+    if (!idTok) return false;
+    if (!lenTok) return false;
+
+    int idVal = strtol(idTok, NULL, 0);
+    int lenVal = strtol(lenTok, NULL, 0);
+
+    for (int i = 0; i < lenVal; i++) {
+        dataTok = strtok(NULL, ",");
+        if (!dataTok) return false;
+        frame.data.byte[i] = strtol(dataTok, NULL, 0);
+    }
+
+    //things seem good so try to send the frame.
+    frame.id = idVal;
+    if (idVal >= 0x7FF) frame.extended = true;
+    else frame.extended = false;
+    frame.length = lenVal;
+    frame.rtr = 0;
+    SWCAN.EnqueueTX(frame);
+    Logger::console("Sending SW frame with id: 0x%x len: %i", frame.id, frame.length);
     SysSettings.txToggle = !SysSettings.txToggle;
     setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
     return true;

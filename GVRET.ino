@@ -33,6 +33,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <SdFat.h>
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
+#include <MCP2515_sw_can.h>
 #include "SerialConsole.h"
 
 /*
@@ -55,10 +56,18 @@ DigitalCANToggleSettings digToggleSettings;
 // file system on sdcard
 SdFat sd;
 
+//Only used by CANDue V2.2 boards
+MCP2515 SWCAN(CANDUE22_SW_CS, CANDUE22_SW_INT);
+
 SerialConsole console;
 
 bool digTogglePinState;
 uint8_t digTogglePinCounter;
+
+void SWCAN_Int()
+{
+    SWCAN.intHandler();
+}
 
 //initializes all the system EEPROM values. Chances are this should be broken out a bit but
 //there is only one checksum check for all of them so it's simple to do it all here.
@@ -74,6 +83,8 @@ void loadSettings()
         settings.CAN0_Enabled = true;
         settings.CAN1Speed = 500000;
         settings.CAN1_Enabled = true;
+        settings.SWCANSpeed = 33333;
+        settings.singleWire_Enabled = false;
         sprintf((char *)settings.fileNameBase, "CANBUS");
         sprintf((char *)settings.fileNameExt, "TXT");
         settings.fileNum = 1;
@@ -103,7 +114,6 @@ void loadSettings()
         settings.logLevel = 1; //info
         settings.sysType = 0; //CANDUE as default
         settings.valid = 0; //not used right now
-        settings.singleWireMode = 0; //normal mode
         settings.CAN0ListenOnly = false;
         settings.CAN1ListenOnly = false;
         EEPROM.write(EEPROM_PAGE, settings);
@@ -142,11 +152,12 @@ void loadSettings()
         SysSettings.LED_CANTX = 13; //We do have an LED at pin 13. Use it for both
         SysSettings.LED_CANRX = 13; //RX and TX.
         SysSettings.LED_LOGGING = 255; //we just don't have an LED to use for this.
+        SysSettings.dedicatedSWCAN = false;
         pinMode(13, OUTPUT);
         digitalWrite(13, LOW);
         break;
     case 2: //CANDUE13
-        Logger::console("Running on CANDue13 hardware");
+        Logger::console("Runni?ng on CANDue v1.3 - v2.1 hardware");
         SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
         SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
         SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
@@ -160,6 +171,26 @@ void loadSettings()
         SysSettings.logToggle = false;
         SysSettings.txToggle = true;
         SysSettings.rxToggle = true;
+        SysSettings.dedicatedSWCAN = false;
+        pinMode(13, OUTPUT); //just to be sure it's an output
+        digitalWrite(13, LOW);
+        break;
+    case 3: //CANDue 2.2 boards
+        Logger::console("Running on CANDue v2.2 hardware");
+        SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
+        SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
+        SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
+        SysSettings.SWCANMode0Pin = CANDUE_SWCAN_MODE0;
+        SysSettings.SWCANMode1Pin = CANDUE_SWCAN_MODE1;
+        SysSettings.useSD = true;
+        SysSettings.SDCardSelPin = CANDUE_SDCARD_SEL;
+        SysSettings.LED_CANTX = 13; //The Arduino Due has three LEDs
+        SysSettings.LED_CANRX = 13; //so we can use them all
+        SysSettings.LED_LOGGING = 13; //The above two are active low. This is active high.
+        SysSettings.logToggle = false;
+        SysSettings.txToggle = true;
+        SysSettings.rxToggle = true;
+        SysSettings.dedicatedSWCAN = true;
         pinMode(13, OUTPUT); //just to be sure it's an output
         digitalWrite(13, LOW);
         break;
@@ -178,6 +209,7 @@ void loadSettings()
         SysSettings.logToggle = false;
         SysSettings.txToggle = true;
         SysSettings.rxToggle = true;
+        SysSettings.dedicatedSWCAN = false;
         pinMode(13, OUTPUT); //just to be sure they're outputs
         pinMode(73, OUTPUT);
         pinMode(72, OUTPUT);
@@ -193,14 +225,23 @@ void loadSettings()
     if (SysSettings.CAN0EnablePin != 255) pinMode(SysSettings.CAN0EnablePin, OUTPUT);
     if (SysSettings.CAN1EnablePin != 255) pinMode(SysSettings.CAN1EnablePin, OUTPUT);
 
-    if (settings.singleWireMode && settings.CAN1_Enabled) setSWCANEnabled();
-    else setSWCANSleep(); //start out setting single wire to sleep.
+    if (!SysSettings.dedicatedSWCAN)
+    {
+        if (settings.singleWire_Enabled && settings.CAN1_Enabled) setSWCANEnabled();
+        else setSWCANSleep(); //start out setting single wire to sleep.
+    }
+    else
+    {
+        if (settings.singleWire_Enabled) setSWCANEnabled();
+        else setSWCANSleep();
+    }
 }
 
 void setSWCANSleep()
 {
     if (SysSettings.SWCANMode0Pin != 255) digitalWrite(SysSettings.SWCANMode0Pin, LOW);
     if (SysSettings.SWCANMode1Pin != 255) digitalWrite(SysSettings.SWCANMode1Pin, LOW);
+    if (SysSettings.dedicatedSWCAN) return;
     if (settings.CAN1_Enabled && SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, HIGH);
 }
 
@@ -208,6 +249,7 @@ void setSWCANEnabled()
 {
     if (SysSettings.SWCANMode0Pin != 255) digitalWrite(SysSettings.SWCANMode0Pin, HIGH);
     if (SysSettings.SWCANMode1Pin != 255) digitalWrite(SysSettings.SWCANMode1Pin, HIGH);
+    if (SysSettings.dedicatedSWCAN) return;
     if (settings.CAN1_Enabled && SysSettings.CAN1EnablePin != 255) digitalWrite(SysSettings.CAN1EnablePin, LOW);
 }
 
@@ -236,7 +278,7 @@ void setup()
     loadSettings();
 
     EEPROM.setWPPin(SysSettings.eepromWPPin);
-
+/*
     if (SysSettings.useSD) {
         if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) {
             Logger::error("Could not initialize SDCard! No file logging will be possible!");
@@ -246,7 +288,7 @@ void setup()
             Logger::info("Automatically logging to file.");
         }
     }
-
+*/
     SerialUSB.print("Build number: ");
     SerialUSB.println(CFG_BUILD_NUM);
 
@@ -290,12 +332,30 @@ void setup()
         }
         Can1.enable();
         Can1.begin(settings.CAN1Speed, SysSettings.CAN1EnablePin);
-        if (settings.singleWireMode) {
-            setSWCANEnabled();
-        } else {
-            setSWCANSleep();
+        if (!SysSettings.dedicatedSWCAN) 
+        {
+            if (settings.singleWire_Enabled) {
+                setSWCANEnabled();
+            } else {
+                setSWCANSleep();
+            }
         }
     } else Can1.disable();
+    
+    if (SysSettings.dedicatedSWCAN) setSWCANSleep();
+
+    if (settings.singleWire_Enabled && SysSettings.dedicatedSWCAN)
+    {
+        SPI.begin();
+        if(SWCAN.Init(settings.SWCANSpeed,16))
+        {
+            SerialUSB.println("MCP2515 Init OK ...");
+            attachInterrupt(CANDUE22_SW_INT, SWCAN_Int, FALLING);
+            setSWCANEnabled();
+        } else {
+            SerialUSB.println("MCP2515 Init Failed ...");
+        }
+    }
 
     for (int i = 0; i < 7; i++) {
         if (settings.CAN0Filters[i].enabled) {
@@ -308,6 +368,8 @@ void setup()
         }
     }
 
+    SWCAN.InitFilters(true); //let everything through
+ 
     SysSettings.lawicelMode = false;
     SysSettings.lawicelAutoPoll = false;
     SysSettings.lawicelTimestamping = false;
@@ -517,6 +579,7 @@ void loop()
 {
     static int loops = 0;
     CAN_FRAME incoming;
+    Frame in_sw;
     static CAN_FRAME build_out_frame;
     static int out_bus;
     int in_byte;
@@ -567,6 +630,19 @@ void loop()
         if (digToggleSettings.enabled && (digToggleSettings.mode & 1) && (digToggleSettings.mode & 4)) processDigToggleFrame(incoming);
         if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
     }
+
+    if (SysSettings.dedicatedSWCAN && settings.singleWire_Enabled && SWCAN.GetRXFrame(in_sw))
+    {
+        incoming.id = in_sw.id;
+        incoming.rtr = in_sw.rtr;
+        incoming.extended = in_sw.extended;
+        incoming.length = in_sw.length;
+        incoming.data.value = in_sw.data.value;
+        toggleRXLED();
+        if (isConnected) sendFrameToUSB(incoming, 2);
+        if (SysSettings.logToFile) sendFrameToFile(incoming, 2);
+    }
+
     if (SysSettings.lawicelPollCounter > 0) SysSettings.lawicelPollCounter--;
     //}
 
@@ -681,7 +757,7 @@ void loop()
                 buff[4] = settings.CAN0Speed >> 8;
                 buff[5] = settings.CAN0Speed >> 16;
                 buff[6] = settings.CAN0Speed >> 24;
-                buff[7] = settings.CAN1_Enabled + ((unsigned char)settings.CAN1ListenOnly << 4) + (unsigned char)settings.singleWireMode << 6;
+                buff[7] = settings.CAN1_Enabled + ((unsigned char)settings.CAN1ListenOnly << 4) + (unsigned char)settings.singleWire_Enabled << 6;
                 buff[8] = settings.CAN1Speed;
                 buff[9] = settings.CAN1Speed >> 8;
                 buff[10] = settings.CAN1Speed >> 16;
@@ -698,7 +774,7 @@ void loop()
                 buff[4] = EEPROM_VER;
                 buff[5] = (unsigned char)settings.fileOutputType;
                 buff[6] = (unsigned char)settings.autoStartLogging;
-                buff[7] = settings.singleWireMode;
+                buff[7] = settings.singleWire_Enabled;
                 SerialUSB.write(buff, 8);
                 state = IDLE;
                 break;
@@ -762,20 +838,31 @@ void loop()
                     temp8 = checksumCalc(buff, step);
                     //if (temp8 == in_byte)
                     //{
-                    if (settings.singleWireMode == 1) {
+                    if (settings.singleWire_Enabled == 1) {
                         if (build_out_frame.id == 0x100) {
-                            if (out_bus == 1) {
+                            if ( ((out_bus == 1) && !SysSettings.dedicatedSWCAN) || (out_bus == 2) ) {
                                 setSWCANWakeup();
                                 delay(5);
                             }
                         }
                     }
+                    build_out_frame.rtr = 0;
                     if (out_bus == 0) Can0.sendFrame(build_out_frame);
                     if (out_bus == 1) Can1.sendFrame(build_out_frame);
+                    if (out_bus == 2)
+                    {
+                        Frame outFrame;
+                        outFrame.id = build_out_frame.id;
+                        outFrame.rtr = build_out_frame.rtr;
+                        outFrame.extended = build_out_frame.extended;
+                        outFrame.length = build_out_frame.length;
+                        outFrame.data.value = build_out_frame.data.value;
+                        SWCAN.EnqueueTX(outFrame);
+                    }
 
-                    if (settings.singleWireMode == 1) {
+                    if (settings.singleWire_Enabled == 1) {
                         if (build_out_frame.id == 0x100) {
-                            if (out_bus == 1) {
+                            if ( ((out_bus == 1) && !SysSettings.dedicatedSWCAN) || (out_bus == 2) ) {
                                 delay(5);
                                 setSWCANEnabled();
                             }
@@ -876,13 +963,13 @@ void loop()
                     build_int = build_int & 0xFFFFF;
                     if (build_int > 1000000) build_int = 1000000;
                     Can1.begin(build_int, SysSettings.CAN1EnablePin);
-                    if (settings.singleWireMode) setSWCANEnabled();
+                    if (settings.singleWire_Enabled && !SysSettings.dedicatedSWCAN) setSWCANEnabled();
                     else setSWCANSleep();
                     //Can1.set_baudrate(build_int);
 
                     settings.CAN1Speed = build_int;
                 } else { //disable second canbus
-                    setSWCANSleep();
+                    if (!SysSettings.dedicatedSWCAN) setSWCANSleep();
                     Can1.disable();
                     settings.CAN1_Enabled = false;
                 }
@@ -896,10 +983,10 @@ void loop()
             break;
         case SET_SINGLEWIRE_MODE:
             if (in_byte == 0x10) {
-                settings.singleWireMode = true;
+                settings.singleWire_Enabled = true;
                 setSWCANEnabled();
             } else {
-                settings.singleWireMode = false;
+                settings.singleWire_Enabled = false;
                 setSWCANSleep();
             }
             EEPROM.write(EEPROM_PAGE, settings);
