@@ -153,6 +153,7 @@ void loadSettings()
         SysSettings.LED_CANRX = 13; //RX and TX.
         SysSettings.LED_LOGGING = 255; //we just don't have an LED to use for this.
         SysSettings.dedicatedSWCAN = false;
+        SysSettings.numBuses = 2;
         pinMode(13, OUTPUT);
         digitalWrite(13, LOW);
         break;
@@ -172,6 +173,7 @@ void loadSettings()
         SysSettings.txToggle = true;
         SysSettings.rxToggle = true;
         SysSettings.dedicatedSWCAN = false;
+        SysSettings.numBuses = 2;
         pinMode(13, OUTPUT); //just to be sure it's an output
         digitalWrite(13, LOW);
         break;
@@ -191,6 +193,7 @@ void loadSettings()
         SysSettings.txToggle = true;
         SysSettings.rxToggle = true;
         SysSettings.dedicatedSWCAN = true;
+        SysSettings.numBuses = 3;
         pinMode(13, OUTPUT); //just to be sure it's an output
         digitalWrite(13, LOW);
         break;
@@ -210,6 +213,7 @@ void loadSettings()
         SysSettings.txToggle = true;
         SysSettings.rxToggle = true;
         SysSettings.dedicatedSWCAN = false;
+        SysSettings.numBuses = 2;
         pinMode(13, OUTPUT); //just to be sure they're outputs
         pinMode(73, OUTPUT);
         pinMode(72, OUTPUT);
@@ -691,12 +695,12 @@ void loop()
             break;
         case GET_COMMAND:
             switch (in_byte) {
-            case 0:
+            case PROTO_BUILD_CAN_FRAME:
                 state = BUILD_CAN_FRAME;
                 buff[0] = 0xF1;
                 step = 0;
                 break;
-            case 1:
+            case PROTO_TIME_SYNC:
                 state = TIME_SYNC;
                 step = 0;
                 buff[0] = 0xF1;
@@ -707,7 +711,7 @@ void loop()
                 buff[5] = (uint8_t)(now >> 24);
                 SerialUSB.write(buff, 6);
                 break;
-            case 2:
+            case PROTO_DIG_INPUTS:
                 //immediately return the data for digital inputs
                 temp8 = getDigital(0) + (getDigital(1) << 1) + (getDigital(2) << 2) + (getDigital(3) << 3);
                 buff[0] = 0xF1;
@@ -718,7 +722,7 @@ void loop()
                 SerialUSB.write(buff, 4);
                 state = IDLE;
                 break;
-            case 3:
+            case PROTO_ANA_INPUTS:
                 //immediately return data on analog inputs
                 temp16 = getAnalog(0);
                 buff[0] = 0xF1;
@@ -739,16 +743,16 @@ void loop()
                 SerialUSB.write(buff, 11);
                 state = IDLE;
                 break;
-            case 4:
+            case PROTO_SET_DIG_OUT:
                 state = SET_DIG_OUTPUTS;
                 buff[0] = 0xF1;
                 break;
-            case 5:
+            case PROTO_SETUP_CANBUS:
                 state = SETUP_CANBUS;
                 step = 0;
                 buff[0] = 0xF1;
                 break;
-            case 6:
+            case PROTO_GET_CANBUS_PARAMS:
                 //immediately return data on canbus params
                 buff[0] = 0xF1;
                 buff[1] = 6;
@@ -765,7 +769,7 @@ void loop()
                 SerialUSB.write(buff, 12);
                 state = IDLE;
                 break;
-            case 7:
+            case PROTO_GET_DEV_INFO:
                 //immediately return device information
                 buff[0] = 0xF1;
                 buff[1] = 7;
@@ -778,12 +782,12 @@ void loop()
                 SerialUSB.write(buff, 8);
                 state = IDLE;
                 break;
-            case 8:
+            case PROTO_SET_SW_MODE:
                 buff[0] = 0xF1;
                 state = SET_SINGLEWIRE_MODE;
                 step = 0;
                 break;
-            case 9:
+            case PROTO_KEEPALIVE:
                 buff[0] = 0xF1;
                 buff[1] = 0x09;
                 buff[2] = 0xDE;
@@ -791,16 +795,49 @@ void loop()
                 SerialUSB.write(buff, 4);
                 state = IDLE;
                 break;
-            case 10:
+            case PROTO_SET_SYSTYPE:
                 buff[0] = 0xF1;
                 state = SET_SYSTYPE;
                 step = 0;
                 break;
-            case 11:
+            case PROTO_ECHO_CAN_FRAME:
                 state = ECHO_CAN_FRAME;
                 buff[0] = 0xF1;
                 step = 0;
                 break;
+            case PROTO_GET_NUMBUSES:
+                buff[0] = 0xF1;
+                buff[1] = 12;
+                buff[2] = 3; //CAN0, CAN1, SWCAN
+                SerialUSB.write(buff, 3);
+                state = IDLE;
+                break;
+             case PROTO_GET_EXT_BUSES:
+                buff[0] = 0xF1;
+                buff[1] = 13;
+                buff[2] = settings.singleWire_Enabled + ((unsigned char)settings.SWCANListenOnly << 4);
+                buff[3] = settings.SWCANSpeed;
+                buff[4] = settings.SWCANSpeed >> 8;
+                buff[5] = settings.SWCANSpeed >> 16;
+                buff[6] = settings.SWCANSpeed >> 24;
+                buff[7] = 0; //fourth bus enabled
+                buff[8] = 0; //fourth bus speed (4 bytes)
+                buff[9] = 0;
+                buff[10] = 0;
+                buff[11] = 0;
+                buff[12] = 0; //fifth bus enabled
+                buff[13] = 0; //fifth bus speed (4 bytes)
+                buff[14] = 0;
+                buff[15] = 0;
+                buff[16] = 0;
+                SerialUSB.write(buff, 17);
+                state = IDLE;             
+                break;
+             case PROTO_SET_EXT_BUSES:
+                state = SETUP_EXT_BUSES;
+                step = 0;
+                buff[0] = 0xF1;      
+                break;                
             }
             break;
         case BUILD_CAN_FRAME:
@@ -1041,6 +1078,86 @@ void loop()
             }
             step++;
             break;
+        case SETUP_EXT_BUSES: //setup enable/listenonly/speed for SWCAN, Enable/Speed for LIN1, LIN2
+            switch (step) {
+            case 0:
+                build_int = in_byte;
+                break;
+            case 1:
+                build_int |= in_byte << 8;
+                break;
+            case 2:
+                build_int |= in_byte << 16;
+                break;
+            case 3:
+                build_int |= in_byte << 24;
+                if (build_int > 0) {
+                    if (build_int & 0x80000000) { //signals that enabled and listen only status are also being passed
+                        if (build_int & 0x40000000) {
+                            settings.singleWire_Enabled = true;
+                            setSWCANEnabled();
+                        } else {
+                            settings.singleWire_Enabled = false;
+                            setSWCANSleep();
+                        }
+                        if (build_int & 0x20000000) {
+                            settings.SWCANListenOnly = true;
+                            //SWCAN.enable_autobaud_listen_mode();
+                        } else {
+                            settings.SWCANListenOnly = false;
+                            //SWCAN.disable_autobaud_listen_mode();
+                        }
+                    } else {
+                        setSWCANEnabled();
+                        settings.singleWire_Enabled = true;
+                    }
+                    build_int = build_int & 0xFFFFF;
+                    if (build_int > 100000) build_int = 100000;
+                    settings.SWCANSpeed = build_int;
+                    SPI.begin();
+                    if(SWCAN.Init(settings.SWCANSpeed,16))
+                    {
+                        SerialUSB.println("MCP2515 Init OK ...");
+                        attachInterrupt(CANDUE22_SW_INT, SWCAN_Int, FALLING);
+                        setSWCANEnabled();
+                    } else {
+                        SerialUSB.println("MCP2515 Init Failed ...");
+                    }
+                } else { //disable first canbus
+                    void setSWCANSleep();
+                    settings.singleWire_Enabled = false;
+                }
+                break;
+            case 4:
+                build_int = in_byte;
+                break;
+            case 5:
+                build_int |= in_byte << 8;
+                break;
+            case 6:
+                build_int |= in_byte << 16;
+                break;
+            case 7:
+                build_int |= in_byte << 24;
+                break;
+            case 8:
+                build_int = in_byte;
+                break;
+            case 9:
+                build_int |= in_byte << 8;
+                break;
+            case 10:
+                build_int |= in_byte << 16;
+                break;
+            case 11:
+                build_int |= in_byte << 24;
+                state = IDLE;
+                //now, write out the new canbus settings to EEPROM
+                EEPROM.write(EEPROM_PAGE, settings);                
+                break;
+            }        
+            step++;
+            break; 
         }
     }
     Logger::loop();

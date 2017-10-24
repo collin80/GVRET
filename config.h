@@ -127,6 +127,7 @@ struct SystemSettings {
     boolean lawicelAutoPoll;
     boolean lawicelTimestamping;
     int lawicelPollCounter;
+    int8_t numBuses;
 };
 
 extern EEPROMSettings settings;
@@ -146,8 +147,8 @@ extern DigitalCANToggleSettings digToggleSettings;
 //The host should be polling every 1ms or so and so this time should be a small multiple of that
 #define SER_BUFF_FLUSH_INTERVAL	2000
 
-#define CFG_BUILD_NUM	340
-#define CFG_VERSION "GVRET alpha 2017-09-18"
+#define CFG_BUILD_NUM	342
+#define CFG_VERSION "GVRET alpha 2017-10-25"
 #define EEPROM_PAGE		275 //this is within an eeprom space currently unused on GEVCU so it's safe
 #define EEPROM_VER		0x17
 
