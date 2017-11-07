@@ -4,7 +4,7 @@
  Created: 7/2/2014 10:10:14 PM
  Author: Collin Kidder
 
-Copyright (c) 2014-2015 Collin Kidder, Michael Neuweiler, Charles Galpin
+Copyright (c) 2014-2015 Coldmesglin Kidder, Michael Neuweiler, Charles Galpin
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -29,10 +29,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "GVRET.h"
 #include "config.h"
-#include <due_can.h>
 #include <SdFat.h>
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
+#include <can_common.h>
+#include <due_can.h>
 #include <MCP2515_sw_can.h>
 #include "SerialConsole.h"
 
@@ -158,7 +159,7 @@ void loadSettings()
         digitalWrite(13, LOW);
         break;
     case 2: //CANDUE13
-        Logger::console("Runni?ng on CANDue v1.3 - v2.1 hardware");
+        Logger::console("Running on CANDue v1.3 - v2.1 hardware");
         SysSettings.eepromWPPin = CANDUE_EEPROM_WP_PIN;
         SysSettings.CAN0EnablePin = CANDUE_CAN0_EN_PIN;
         SysSettings.CAN1EnablePin = CANDUE_CAN1_EN_PIN;
@@ -266,6 +267,7 @@ void setSWCANWakeup()
 void setup()
 {
     //delay(5000); //just for testing. Don't use in production
+    SerialUSB.println("Starting up!");
     pinMode(BLINK_LED, OUTPUT);
     digitalWrite(BLINK_LED, LOW);
 
@@ -317,7 +319,6 @@ void setup()
         }
     }
 
-
     if (settings.CAN0_Enabled) {
         if (settings.CAN0ListenOnly) {
             Can0.enable_autobaud_listen_mode();
@@ -359,7 +360,7 @@ void setup()
         } else {
             SerialUSB.println("MCP2515 Init Failed ...");
         }
-    }
+    } 
 
     for (int i = 0; i < 7; i++) {
         if (settings.CAN0Filters[i].enabled) {
@@ -372,8 +373,9 @@ void setup()
         }
     }
 
-    SWCAN.InitFilters(true); //let everything through
- 
+    if (settings.singleWire_Enabled && SysSettings.dedicatedSWCAN)
+        SWCAN.InitFilters(true); //let everything through
+    
     SysSettings.lawicelMode = false;
     SysSettings.lawicelAutoPoll = false;
     SysSettings.lawicelTimestamping = false;
@@ -583,7 +585,6 @@ void loop()
 {
     static int loops = 0;
     CAN_FRAME incoming;
-    Frame in_sw;
     static CAN_FRAME build_out_frame;
     static int out_bus;
     int in_byte;
@@ -635,13 +636,8 @@ void loop()
         if (SysSettings.logToFile) sendFrameToFile(incoming, 1);
     }
 
-    if (SysSettings.dedicatedSWCAN && settings.singleWire_Enabled && SWCAN.GetRXFrame(in_sw))
+    if (SysSettings.dedicatedSWCAN && settings.singleWire_Enabled && SWCAN.GetRXFrame(incoming))
     {
-        incoming.id = in_sw.id;
-        incoming.rtr = in_sw.rtr;
-        incoming.extended = in_sw.extended;
-        incoming.length = in_sw.length;
-        incoming.data.value = in_sw.data.value;
         toggleRXLED();
         if (isConnected) sendFrameToUSB(incoming, 2);
         if (SysSettings.logToFile) sendFrameToFile(incoming, 2);
@@ -888,13 +884,7 @@ void loop()
                     if (out_bus == 1) Can1.sendFrame(build_out_frame);
                     if (out_bus == 2)
                     {
-                        Frame outFrame;
-                        outFrame.id = build_out_frame.id;
-                        outFrame.rtr = build_out_frame.rtr;
-                        outFrame.extended = build_out_frame.extended;
-                        outFrame.length = build_out_frame.length;
-                        outFrame.data.value = build_out_frame.data.value;
-                        SWCAN.EnqueueTX(outFrame);
+                        SWCAN.EnqueueTX(build_out_frame);
                     }
 
                     if (settings.singleWire_Enabled == 1) {

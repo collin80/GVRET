@@ -70,7 +70,7 @@ void SerialConsole::printMenu()
     SerialUSB.println();
 
     Logger::console("LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", settings.logLevel);
-    Logger::console("SYSTYPE=%i - set board type (0=CANDue, 1=GEVCU)", settings.sysType);
+    Logger::console("SYSTYPE=%i - set board type (0=CANDue, 1=GEVCU, 2 = CANDUE1.3-2.1, 3 = CANDUE2.2)", settings.sysType);
     SerialUSB.println();
 
     Logger::console("CAN0EN=%i - Enable/Disable CAN0 (0 = Disable, 1 = Enable)", settings.CAN0_Enabled);
@@ -378,11 +378,11 @@ void SerialConsole::handleConfigCmd()
     } else if (cmdString == String("CAN1FILTER7")) {
         if (handleFilterSet(1, 7, newString)) writeEEPROM = true;
     } else if (cmdString == String("CAN0SEND")) {
-        handleCANSend(Can0, newString);
+        handleCANSend(&Can0, newString);
     } else if (cmdString == String("CAN1SEND")) {
-        handleCANSend(Can1, newString);
+        handleCANSend(&Can1, newString);
     } else if (cmdString == String("SWSEND")) {
-        handleSWCANSend(newString);        
+        handleCANSend(&SWCAN, newString);        
     } else if (cmdString == String("MARK")) { //just ascii based for now
         if (settings.fileOutputType == GVRET) Logger::file("Mark: %s", newString);
         if (settings.fileOutputType == CRTD) {
@@ -663,7 +663,7 @@ bool SerialConsole::handleFilterSet(uint8_t bus, uint8_t filter, char *values)
     return true;
 }
 
-bool SerialConsole::handleCANSend(CANRaw &port, char *inputString)
+bool SerialConsole::handleCANSend(CAN_COMMON *port, char *inputString)
 {
     char *idTok = strtok(inputString, ",");
     char *lenTok = strtok(NULL, ",");
@@ -687,40 +687,9 @@ bool SerialConsole::handleCANSend(CANRaw &port, char *inputString)
     if (idVal >= 0x7FF) frame.extended = true;
     else frame.extended = false;
     frame.length = lenVal;
-    port.sendFrame(frame);
-    Logger::console("Sending frame with id: 0x%x len: %i", frame.id, frame.length);
-    SysSettings.txToggle = !SysSettings.txToggle;
-    setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
-    return true;
-}
-
-bool SerialConsole::handleSWCANSend(char *inputString)
-{
-    char *idTok = strtok(inputString, ",");
-    char *lenTok = strtok(NULL, ",");
-    char *dataTok;
-    Frame frame;
-
-    if (!idTok) return false;
-    if (!lenTok) return false;
-
-    int idVal = strtol(idTok, NULL, 0);
-    int lenVal = strtol(lenTok, NULL, 0);
-
-    for (int i = 0; i < lenVal; i++) {
-        dataTok = strtok(NULL, ",");
-        if (!dataTok) return false;
-        frame.data.byte[i] = strtol(dataTok, NULL, 0);
-    }
-
-    //things seem good so try to send the frame.
-    frame.id = idVal;
-    if (idVal >= 0x7FF) frame.extended = true;
-    else frame.extended = false;
-    frame.length = lenVal;
     frame.rtr = 0;
-    SWCAN.EnqueueTX(frame);
-    Logger::console("Sending SW frame with id: 0x%x len: %i", frame.id, frame.length);
+    port->sendFrame(frame);
+    Logger::console("Sending frame with id: 0x%x len: %i", frame.id, frame.length);
     SysSettings.txToggle = !SysSettings.txToggle;
     setLED(SysSettings.LED_CANTX, SysSettings.txToggle);
     return true;

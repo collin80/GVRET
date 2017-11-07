@@ -54,8 +54,7 @@ private:
     void handleConfigCmd();
     void handleLawicelCmd();
     bool handleFilterSet(uint8_t bus, uint8_t filter, char *values);
-    bool handleCANSend(CANRaw &port, char *inputString);
-    bool handleSWCANSend(char *inputString);    
+    bool handleCANSend(CAN_COMMON *port, char *inputString); 
     unsigned int parseHexCharacter(char chr);
     unsigned int parseHexString(char *str, int length);
 };
