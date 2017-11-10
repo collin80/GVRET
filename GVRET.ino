@@ -4,7 +4,7 @@
  Created: 7/2/2014 10:10:14 PM
  Author: Collin Kidder
 
-Copyright (c) 2014-2015 Coldmesglin Kidder, Michael Neuweiler, Charles Galpin
+Copyright (c) 2014-2015 Collin Kidder, Michael Neuweiler, Charles Galpin
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -284,7 +284,7 @@ void setup()
     loadSettings();
 
     EEPROM.setWPPin(SysSettings.eepromWPPin);
-/*
+
     if (SysSettings.useSD) {
         if (!sd.begin(SysSettings.SDCardSelPin, SPI_FULL_SPEED)) {
             Logger::error("Could not initialize SDCard! No file logging will be possible!");
@@ -294,7 +294,7 @@ void setup()
             Logger::info("Automatically logging to file.");
         }
     }
-*/
+    
     SerialUSB.print("Build number: ");
     SerialUSB.println(CFG_BUILD_NUM);
 
@@ -856,7 +856,7 @@ void loop()
                 } else build_out_frame.extended = false;
                 break;
             case 4:
-                out_bus = in_byte & 1;
+                out_bus = in_byte & 3;
                 break;
             case 5:
                 build_out_frame.length = in_byte & 0xF;
@@ -875,22 +875,19 @@ void loop()
                         if (build_out_frame.id == 0x100) {
                             if ( ((out_bus == 1) && !SysSettings.dedicatedSWCAN) || (out_bus == 2) ) {
                                 setSWCANWakeup();
-                                delay(5);
+                                delay(1);
                             }
                         }
                     }
                     build_out_frame.rtr = 0;
                     if (out_bus == 0) Can0.sendFrame(build_out_frame);
                     if (out_bus == 1) Can1.sendFrame(build_out_frame);
-                    if (out_bus == 2)
-                    {
-                        SWCAN.EnqueueTX(build_out_frame);
-                    }
+                    if (out_bus == 2) SWCAN.sendFrame(build_out_frame);
 
                     if (settings.singleWire_Enabled == 1) {
                         if (build_out_frame.id == 0x100) {
                             if ( ((out_bus == 1) && !SysSettings.dedicatedSWCAN) || (out_bus == 2) ) {
-                                delay(5);
+                                delay(1);
                                 setSWCANEnabled();
                             }
                         }
