@@ -34,7 +34,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <Wire_EEPROM.h>
 #include <can_common.h>
 #include <due_can.h>
-#include <MCP2515_sw_can.h>
+#include <MCP2515.h>
 #include "SerialConsole.h"
 
 /*
@@ -266,6 +266,11 @@ void setSWCANWakeup()
 
 void setup()
 {
+    pinMode(CANDUE22_SW_CS, OUTPUT);
+    pinMode(CANDUE22_SW_INT, INPUT);
+    digitalWrite(CANDUE22_SW_CS, HIGH);
+    digitalWrite(CANDUE22_SW_INT, HIGH);
+  
     //delay(5000); //just for testing. Don't use in production
     SerialUSB.println("Starting up!");
     pinMode(BLINK_LED, OUTPUT);
@@ -618,7 +623,7 @@ void loop()
 
     //if (!SysSettings.lawicelMode || SysSettings.lawicelAutoPoll || SysSettings.lawicelPollCounter > 0)
     //{
-    if (Can0.available()) {
+    while (Can0.available()) {
         Can0.read(incoming);
         if (digitalRead(ENABLE_PASS_0TO1_PIN)) Can1.sendFrame(incoming); // if pin is NOT shorted to GND
         toggleRXLED();
@@ -627,7 +632,7 @@ void loop()
         if (digToggleSettings.enabled && (digToggleSettings.mode & 1) && (digToggleSettings.mode & 2)) processDigToggleFrame(incoming);
     }
 
-    if (Can1.available()) {
+    while (Can1.available()) {
         Can1.read(incoming);
         if (digitalRead(ENABLE_PASS_1TO0_PIN)) Can0.sendFrame(incoming); // if pin is NOT shorted to GND
         toggleRXLED();

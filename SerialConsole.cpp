@@ -30,7 +30,7 @@
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 #include <due_can.h>
-#include <MCP2515_sw_can.h>
+#include <MCP2515.h>
 #include "config.h"
 #include "sys_io.h"
 
