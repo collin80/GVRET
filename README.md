@@ -14,6 +14,8 @@ You will need the following to compile this project:
 - Compatible hardware such as [GEVCU](http://store.evtv.me/proddetail.php?prod=gevcu&cat=28), CANDue (1.1 or 2.0), or EVTVDue
 - [Arduino IDE](https://www.arduino.cc/en/Main/Software) 1.5.4 or higher (tested all of the way up to 1.6.6)
 - [due_can](https://github.com/collin80/due_can) - Object oriented canbus library for Arduino Due compatible boards.
+- [can_common](https://github.com/collin80/can_common) - Common structs and functions for CAN libraries.
+- [MCP2515](https://github.com/macchina/mcp2515) - Facilitate CAN functionality with the onboard MCP2515 CAN controller.
 - [due_wire](https://github.com/collin80/due_wire) - An alternative I2C library for Due with DMA support.
 - [SdFat](https://github.com/collin80/SdFat-beta) - Arduino FAT16/FAT32 Library (Note - now using Beta version!)
 - [DueFlashStorage](https://github.com/collin80/DueFlashStorage) DueFlashStorage saves non-volatile data for Arduino Due.
